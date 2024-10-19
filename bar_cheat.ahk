@@ -6,35 +6,10 @@
 ; Global variables
 global gGui := ""
 global mouseX := 0, mouseY := 0
-global AmountBox := ""  ; Declare AmountBox as a global variable
-global CheatCodes := [
-    "Cheat ON|/cheat",
-    "Constructors|/give 10 armck 0",
-    "Construction Kbot|/give 10 armack 0",
-    "Construction Turret|/give 1 armnanotc 0",
-    "Tech 2 Lab|/give 1 armalab 0",
-    "Tech 3 Lab|/give 1 armshltx 0",
-    "Spider|/give 10 armsptk 0",
-    "Titan (Bantha)|/give 10 armbanth 0",
-    "Anti Missile (Ferret)|/give 1 armferret 0",
-    "Flak|/give 1 armflak 0",
-    "Advanced Radar|/give 1 armarad 0",
-    "Shield|/give 1 armgate 0",
-    "Big Bertha|/give 1 armbrtha 0",
-    "Infinite resources|/give resourcecheat 0",
-    "Toggle Visibility|/globallos 0",
-    "God mode control any unit|/godmode",
-    "No cost ON|/nocost",
-    "No cost OFF|/nocost 0",
-    "Mobile Tachyon Weapon|/give 2 armmanni 0",
-    "Vanguard - All-Terrain Heavy Plasma Cannon|/give 5 armvang 0",
-    "Atomic Bomber|/give 2 armliche 0",
-    "Strategic Bomber|/give 20 armpnix 0",
-    "Advanced Construction Aircraft|/give 10 armaca 0",
-    "Ragnarok - Rapid-Fire Long-Range Plasma Cannon|/give 1 armvulc 0",
-    "Butler - Fast Assist / Repair Bot|/give 10 armfark 0",
-    "Armageddon - Nuclear ICBM Launcher|/give 1 armsilo 0",
-]
+global AmountBox := ""
+global CheatCodesFile := A_ScriptDir "\cheats.txt"
+global LastModified := ""
+global TreeView := ""
 
 ; Define the hotkey (Alt+C)
 !c::ShowGui()
@@ -45,34 +20,114 @@ Enter::PasteSelectedCode
 Escape::CloseGui()
 #HotIf
 
+LoadCheatCodes() {
+    ; Create default file if it doesn't exist
+    if !FileExist(CheatCodesFile) {
+        defaultCheats := "
+        (
+        Units
+            Constructors|/give 10 armck 0
+            Construction Kbot|/give 10 armack 0
+            Spider|/give 10 armsptk 0
+            Titan (Bantha)|/give 10 armbanth 0
+            Butler - Fast Assist / Repair Bot|/give 10 armfark 0
+        Buildings
+            Construction Turret|/give 1 armnanotc 0
+            Tech 2 Lab|/give 1 armalab 0
+            Tech 3 Lab|/give 1 armshltx 0
+            Advanced Radar|/give 1 armarad 0
+            Shield|/give 1 armgate 0
+        Weapons
+            Anti Missile (Ferret)|/give 1 armferret 0
+            Flak|/give 1 armflak 0
+            Big Bertha|/give 1 armbrtha 0
+            Mobile Tachyon Weapon|/give 2 armmanni 0
+            Ragnarok - Rapid-Fire Long-Range Plasma Cannon|/give 1 armvulc 0
+        Aircraft
+            Strategic Bomber|/give 20 armpnix 0
+            Atomic Bomber|/give 2 armliche 0
+            Advanced Construction Aircraft|/give 10 armaca 0
+        Game Commands
+            Cheat ON|/cheat
+            Infinite resources|/give resourcecheat 0
+            Toggle Visibility|/globallos 0
+            God mode control any unit|/godmode
+            No cost ON|/nocost
+            No cost OFF|/nocost 0
+        )"
+        FileAppend(defaultCheats, CheatCodesFile)
+    }
+
+    ; Update last modified time
+    LastModified := FileGetTime(CheatCodesFile)
+    
+    ; Read and parse file
+    fileContent := FileRead(CheatCodesFile)
+    return ParseCheatFile(fileContent)
+}
+
+ParseCheatFile(content) {
+    cheats := Map()
+    currentCategory := "Uncategorized"
+    
+    Loop Parse, content, "`n", "`r" {
+        line := Trim(A_LoopField)
+        if !line
+            continue
+            
+        ; Check if line is a category (no pipe character and not indented)
+        if !InStr(line, "|") && SubStr(line, 1, 4) != "    " {
+            currentCategory := line
+            cheats[currentCategory] := []
+            continue
+        }
+        
+        ; If it's a cheat entry (contains pipe character)
+        if InStr(line, "|") {
+            cheatParts := StrSplit(Trim(line), "|")
+            if cheatParts.Length = 2
+                cheats[currentCategory].Push({name: cheatParts[1], code: cheatParts[2]})
+        }
+    }
+    return cheats
+}
+
 ShowGui() {
-    global gGui, AmountBox
+    global gGui, AmountBox, TreeView, LastModified
     global mouseX, mouseY
   
+    ; Check if file has been modified
+    currentModified := FileGetTime(CheatCodesFile)
+    shouldReload := currentModified != LastModified
+    
     ; Capture current mouse position
     CoordMode("Mouse", "Screen")
     MouseGetPos(&mouseX, &mouseY)
 
-    ; If GUI exists, show and activate it
+    ; If GUI exists and file hasn't changed, show and activate it
     try {
-        if IsObject(gGui) && WinExist("ahk_id " gGui.Hwnd) {
+        if IsObject(gGui) && WinExist("ahk_id " gGui.Hwnd) && !shouldReload {
             ForceActivateWindow(gGui)
             return
         }
     }
     
-    ; Create new GUI if it doesn't exist
-    gGui := Gui("+AlwaysOnTop +Owner")  ; Added AlwaysOnTop and Owner
+    ; Create new GUI
+    gGui := Gui("+AlwaysOnTop +Owner")
     gGui.Title := "Total Annihilation Cheat Codes"
     gGui.SetFont("s10")
     
     ; Add instructions
     gGui.Add("Text", "x10 y10 w300", "Select a cheat code and press Enter or click Paste:")
     
-    ; Add ListBox with scrollbar
-    ListBox := gGui.Add("ListBox", "x10 y40 w300 h200 vSelectedCheat", CheatCodes)
-    ListBox.OnEvent("DoubleClick", PasteSelectedCode)
-    ListBox.OnEvent("Change", UpdateCheatAmount)
+    ; Add TreeView
+    TreeView := gGui.Add("TreeView", "x10 y40 w300 h200 vSelectedCheat")
+    TreeView.OnEvent("DoubleClick", PasteSelectedCode)
+    TreeView.OnEvent("ItemSelect", UpdateCheatAmount)
+    
+    ; Load cheats into TreeView
+    cheats := LoadCheatCodes()
+    PopulateTreeView(TreeView, cheats)
 
     ; Add text box and increment/decrement buttons for the cheat amount
     gGui.Add("Text", "x10 y250 w100", "Amount:")
@@ -96,6 +151,18 @@ ShowGui() {
     ; Show and force activate the GUI
     gGui.Show()
     ForceActivateWindow(gGui)
+}
+
+PopulateTreeView(TreeView, cheats) {
+    TreeView.Delete()
+    for category, cheatList in cheats {
+        parentItem := TreeView.Add("", category)  ; First parameter should be "" for root items
+        for cheat in cheatList
+            TreeView.Add(parentItem, cheat.name)  ; Add child items under parent
+    }
+    ; Get first item and expand it
+    if firstItem := TreeView.GetNext()
+        TreeView.Modify(firstItem, "Expand")
 }
 
 ForceActivateWindow(gui) {
