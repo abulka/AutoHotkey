@@ -19,11 +19,11 @@ global CheatCodes := [
     "Flak|/give 1 armflak 0",
     "Advanced Radar|/give 1 armarad 0",
     "Shield|/give 1 armgate 0",
-    "Big Bertha|/give 1 armbrtha 0"
+    "Big Bertha|/give 1 armbrtha 0",
     "Cheat ON|/cheat",
     "Infinite resources|/give resourcecheat 0",
     "Toggle Visibility|/globallos 0",
-    "God mode control any unit|/godmode",
+    "God mode control any unit|/godmode"
 ]
 
 ; Define the hotkey (Alt+C)
@@ -114,20 +114,24 @@ UpdateCheatAmount(*) {
     if !saved.HasProp("SelectedCheat") || saved.SelectedCheat = ""
         return
     
-    ; Extract the number from the selected cheat code
+    ; Extract the number from the selected cheat code if it starts with /give
     selectedText := saved.SelectedCheat
     cheatCode := StrSplit(selectedText, "|")[2]
-    amount := RegExReplace(cheatCode, ".*? (\d+) .*", "$1")
-    
-    ; Update the text box with the extracted amount
-    AmountBox.Value := amount
+    if InStr(cheatCode, "/give") {
+        amount := RegExReplace(cheatCode, ".*? (\d+) .*", "$1")
+        ; Update the text box with the extracted amount
+        AmountBox.Value := amount
+    } else {
+        AmountBox.Value := ""
+    }
 }
 
 IncrementAmount(*) {
     global AmountBox
     
     amount := AmountBox.Value
-    amount++
+    if amount != ""
+        amount++
     AmountBox.Value := amount
 }
 
@@ -135,7 +139,8 @@ DecrementAmount(*) {
     global AmountBox
     
     amount := AmountBox.Value
-    amount--
+    if amount != ""
+        amount--
     AmountBox.Value := amount
 }
 
@@ -150,9 +155,11 @@ PasteSelectedCode(*) {
     selectedText := saved.SelectedCheat
     cheatCode := StrSplit(selectedText, "|")[2]
     
-    ; Get the edited amount from the text box
-    amount := AmountBox.Value
-    cheatCode := RegExReplace(cheatCode, " (\d+) ", " " amount " ")
+    ; Get the edited amount from the text box if the command is /give
+    if InStr(cheatCode, "/give") {
+        amount := AmountBox.Value
+        cheatCode := RegExReplace(cheatCode, " (\d+) ", " " amount " ")
+    }
     
     ; Store the game window title/class
     try {
