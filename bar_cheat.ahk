@@ -20,6 +20,10 @@ global CheatCodes := [
     "Advanced Radar|/give 1 armarad 0",
     "Shield|/give 1 armgate 0",
     "Big Bertha|/give 1 armbrtha 0"
+    "Cheat ON|/cheat",
+    "Infinite resources|/give resourcecheat 0",
+    "Toggle Visibility|/globallos 0",
+    "God mode control any unit|/godmode",
 ]
 
 ; Define the hotkey (Alt+C)
