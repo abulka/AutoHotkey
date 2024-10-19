@@ -8,6 +8,7 @@ global gGui := ""
 global mouseX := 0, mouseY := 0
 global AmountBox := ""  ; Declare AmountBox as a global variable
 global CheatCodes := [
+    "Cheat ON|/cheat",
     "Constructors|/give 10 armck 0",
     "Construction Kbot|/give 10 armack 0",
     "Construction Turret|/give 1 armnanotc 0",
@@ -20,7 +21,6 @@ global CheatCodes := [
     "Advanced Radar|/give 1 armarad 0",
     "Shield|/give 1 armgate 0",
     "Big Bertha|/give 1 armbrtha 0",
-    "Cheat ON|/cheat",
     "Infinite resources|/give resourcecheat 0",
     "Toggle Visibility|/globallos 0",
     "God mode control any unit|/godmode"
@@ -114,10 +114,10 @@ UpdateCheatAmount(*) {
     if !saved.HasProp("SelectedCheat") || saved.SelectedCheat = ""
         return
     
-    ; Extract the number from the selected cheat code if it starts with /give
+    ; Extract the number from the selected cheat code if it starts with /give and has a number
     selectedText := saved.SelectedCheat
     cheatCode := StrSplit(selectedText, "|")[2]
-    if InStr(cheatCode, "/give") {
+    if InStr(cheatCode, "/give") && RegExMatch(cheatCode, " (\d+) ") {
         amount := RegExReplace(cheatCode, ".*? (\d+) .*", "$1")
         ; Update the text box with the extracted amount
         AmountBox.Value := amount
@@ -155,8 +155,8 @@ PasteSelectedCode(*) {
     selectedText := saved.SelectedCheat
     cheatCode := StrSplit(selectedText, "|")[2]
     
-    ; Get the edited amount from the text box if the command is /give
-    if InStr(cheatCode, "/give") {
+    ; Get the edited amount from the text box if the command is /give and has a number
+    if InStr(cheatCode, "/give") && RegExMatch(cheatCode, " (\d+) ") {
         amount := AmountBox.Value
         cheatCode := RegExReplace(cheatCode, " (\d+) ", " " amount " ")
     }
