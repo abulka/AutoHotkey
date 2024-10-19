@@ -23,7 +23,17 @@ global CheatCodes := [
     "Big Bertha|/give 1 armbrtha 0",
     "Infinite resources|/give resourcecheat 0",
     "Toggle Visibility|/globallos 0",
-    "God mode control any unit|/godmode"
+    "God mode control any unit|/godmode",
+    "No cost ON|/nocost",
+    "No cost OFF|/nocost 0",
+    "Mobile Tachyon Weapon|/give 2 armmanni 0",
+    "Vanguard - All-Terrain Heavy Plasma Cannon|/give 5 armvang 0",
+    "Atomic Bomber|/give 2 armliche 0",
+    "Strategic Bomber|/give 20 armpnix 0",
+    "Advanced Construction Aircraft|/give 10 armaca 0",
+    "Ragnarok - Rapid-Fire Long-Range Plasma Cannon|/give 1 armvulc 0",
+    "Butler - Fast Assist / Repair Bot|/give 10 armfark 0",
+    "Armageddon - Nuclear ICBM Launcher|/give 1 armsilo 0",
 ]
 
 ; Define the hotkey (Alt+C)
