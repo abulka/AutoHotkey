@@ -7,9 +7,10 @@
 global gGui := ""
 global mouseX := 0, mouseY := 0
 global AmountBox := ""
-global CheatCodesFile := A_ScriptDir "\cheats.txt"
+global CheatCodesFile := A_ScriptDir "\bar_cheats.txt"
 global LastModified := ""
 global TreeView := ""
+global TreeViewStateFile := A_ScriptDir "\bar_treeview_state.txt"
 
 ; Define the hotkey (Alt+C)
 !c::ShowGui()
@@ -101,7 +102,7 @@ ParseCheatFile(content) {
 
 ShowGui() {
     global gGui, AmountBox, TreeView, LastModified
-    global mouseX, mouseY, CheatCodesFile
+    global mouseX, mouseY, CheatCodesFile, TreeViewStateFile
   
     ; Check if file has been modified
     if FileExist(CheatCodesFile) {
@@ -140,6 +141,9 @@ ShowGui() {
     cheats := LoadCheatCodes()
     PopulateTreeView(TreeView, cheats)
 
+    ; Restore TreeView state
+    RestoreTreeViewState(TreeView, TreeViewStateFile)
+
     ; Add text box and increment/decrement buttons for the cheat amount
     gGui.Add("Text", "x10 y250 w100", "Amount:")
     AmountBox := gGui.Add("Edit", "x120 y250 w50 vCheatAmount", "")
@@ -149,6 +153,10 @@ ShowGui() {
     ; Add Paste and Close buttons
     PasteBtn := gGui.Add("Button", "x10 y290 w140", "Paste Code (Enter)")
     CloseBtn := gGui.Add("Button", "x170 y290 w140", "Close (Esc)")
+    
+    ; Add Debug button
+    DebugBtn := gGui.Add("Button", "x10 y330 w140", "Save Tree State (Debug)")
+    DebugBtn.OnEvent("Click", SaveTreeViewStateDebug)
     
     ; Button handlers
     PasteBtn.OnEvent("Click", PasteSelectedCode)
@@ -187,10 +195,57 @@ PopulateTreeView(TreeView, cheats) {
     
     ; Store the item map for later use
     TreeView.itemMap := itemMap
+}
+
+SaveTreeViewState(TreeView, filePath) {
+    state := ""
+    itemId := 0  ; Start at the top of the tree
+    Loop {
+        itemId := TreeView.GetNext(itemId, "Full")
+        if !itemId
+            break
+        if TreeView.Get(itemId, "Expand") {
+            itemText := TreeView.GetText(itemId)
+            state .= itemText "`n"
+        }
+    }
+    ; MsgBox "Final TreeView State: " state  ; Debugging message box
     
-    ; Get first item and expand it
-    if firstItem := TreeView.GetNext()
-        TreeView.Modify(firstItem, "Expand")
+    ; Use FileOpen to write to the file
+    file := FileOpen(filePath, "w")
+    if file {
+        file.Write(state)
+        file.Close()
+    } else {
+        MsgBox "Failed to open file: " filePath
+    }
+}
+
+SaveTreeViewStateDebug(*) {
+    global TreeView, TreeViewStateFile
+    SaveTreeViewState(TreeView, TreeViewStateFile)
+}
+
+RestoreTreeViewState(TreeView, filePath) {
+    if !FileExist(filePath)
+        return
+    
+    state := FileRead(filePath, "UTF-8")
+    expandedItems := StrSplit(state, "`n")
+    
+    itemId := 0  ; Start at the top of the tree
+    Loop {
+        itemId := TreeView.GetNext(itemId, "Full")
+        if !itemId
+            break
+        itemText := TreeView.GetText(itemId)
+        for expandedItem in expandedItems {
+            if itemText = expandedItem {
+                TreeView.Modify(itemId, "Expand")
+                break
+            }
+        }
+    }
 }
 
 ForceActivateWindow(gui) {
@@ -264,7 +319,10 @@ DecrementAmount(*) {
 }
 
 PasteSelectedCode(*) {
-    global gGui, AmountBox
+    global gGui, AmountBox, TreeView, TreeViewStateFile
+    
+    ; Save TreeView state before hiding the GUI
+    SaveTreeViewState(TreeView, TreeViewStateFile)
     
     ; Get the selected item's ID number
     selectedItemId := TreeView.GetSelection()
