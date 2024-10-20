@@ -1,34 +1,4 @@
-Units
-    Constructors|/give 10 armck 0
-    Construction Kbot|/give 10 armack 0
-    Spider|/give 10 armsptk 0
-    Titan (Bantha)|/give 10 armbanth 0
-    Butler - Fast Assist / Repair Bot|/give 10 armfark 0
-    DUMMYX TEST UNIT|/give 10 armcom 0
-Buildings
-    Construction Turret|/give 1 armnanotc 0
-    Tech 2 Lab|/give 1 armalab 0
-    Tech 3 Lab|/give 1 armshltx 0
-    Advanced Radar|/give 1 armarad 0
-    Shield|/give 1 armgate 0
-Weapons
-    Anti Missile (Ferret)|/give 1 armferret 0
-    Flak|/give 1 armflak 0
-    Big Bertha|/give 1 armbrtha 0
-    Mobile Tachyon Weapon|/give 2 armmanni 0
-    Ragnarok - Rapid-Fire Long-Range Plasma Cannon|/give 1 armvulc 0
-Aircraft
-    Strategic Bomber|/give 20 armpnix 0
-    Atomic Bomber|/give 2 armliche 0
-    Advanced Construction Aircraft|/give 10 armaca 0
-Game Commands
-    Cheat ON|/cheat
-    Infinite resources|/give resourcecheat 0
-    Toggle Visibility|/globallos 0
-    God mode control any unit|/godmode
-    No cost ON|/nocost
-    No cost OFF|/nocost 0
-_Bots
+Bots
     Tick - Fast Scout Bot - Tech Level 1|/give 10 armflea 0
     Pawn - Fast Infantry Bot - Tech Level 1|/give 10 armpw 0
     Construction Bot - Tech 1 Constructor - Tech Level 1|/give 10 armck 0
@@ -40,7 +10,7 @@ _Bots
     Armada Commander - Commander - Tech Level 1|/give 10 armcom 0
     Tumbleweed - Amphibious Rolling Bomb - Tech Level 2|/give 10 armvader 0
 
-_Vehicles
+Vehicles
      - Light Scout Vehicle - Tech Level 1|/give 10 armfav 0
      - Stealthy Minelayer / Minesweeper - Tech Level 1|/give 10 armmlv 0
      - Fast Assault Tank - Tech Level 1|/give 10 armflash 0
@@ -65,7 +35,7 @@ _Vehicles
      - Mobile Tachyon Weapon - Tech Level 2|/give 10 armmanni 0
      - Experimental Terminator Tank - Tech Level 3|/give 10 armthor 0
 
-_Aircraft
+Aircraft
      - Scout - Tech Level 1|/give 10 armpeep 0
      - Light Air Transport - Tech Level 1|/give 10 armatlas 0
      - Fighter - Tech Level 1|/give 10 armfig 0
@@ -89,7 +59,7 @@ _Aircraft
      - Rapid Assault Gunship - Tech Level 2|/give 10 armblade 0
      - Atomic Bomber - Tech Level 2|/give 10 armliche 0
 
-_Ships
+Ships
      - Stealthy Patrol Boat / Light Anti Air / Sonar - Tech Level 1|/give 10 armpt 0
      - Fast Assault Corvette - Tech Level 1|/give 10 armdecade 0
      - Tech 1 Constructor - Tech Level 1|/give 10 armcs 0
@@ -110,7 +80,7 @@ _Ships
      - Battleship - Tech Level 2|/give 10 armbats 0
      - Flagship - Tech Level 2|/give 10 armepoch 0
 
-_Hovercraft
+Hovercraft
      - Fast Attack Hovercraft - Tech Level 1|/give 10 armsh 0
      - Hovercraft Rocket Launcher - Tech Level 1|/give 10 armmh 0
      - Tech 1 Constructor - Tech Level 1|/give 10 armch 0
@@ -118,7 +88,7 @@ _Hovercraft
      - Hovertank - Tech Level 1|/give 10 armanac 0
      - Heavy Hovertank - Tech Level 3|/give 10 armlun 0
 
-_Factories
+Factories
      - Produces Tech 1 Ships - Tech Level 1|/give 10 armsy 0
      - Produces Tech 1 Bots - Tech Level 1|/give 10 armlab 0
      - Produces Tech 1 Vehicles - Tech Level 1|/give 10 armvp 0
@@ -134,7 +104,7 @@ _Factories
      - Produces Experimental Units - Tech Level 3|/give 10 armshltx 0
      - Produces Large Amphibious Units - Tech Level 3|/give 10 armshltxuw 0
 
-_Defense Buildings
+Defense Buildings
      - Light Mine - Tech Level 1|/give 10 armmine1 0
      - Fortification - Tech Level 1|/give 10 armdrag 0
      - Naval Fortification - Tech Level 1|/give 10 armfdrag 0
