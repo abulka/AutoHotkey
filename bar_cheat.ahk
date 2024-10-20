@@ -53,9 +53,12 @@ LoadCheatCodes() {
         Game Commands
             Cheat ON|/cheat
             Infinite resources|/give resourcecheat 0
+            Toggle Visibility|/globallos 0
+            God mode control any unit|/godmode
+            No cost ON|/nocost
+            No cost OFF|/nocost 0
         )"
-        ; Remove leading spaces from the default cheats
-        defaultCheats := RegExReplace(defaultCheats, "m)^\s+", "")
+        ; Write the default cheats to the file
         FileAppend(defaultCheats, CheatCodesFile)
         
         ; Set LastModified to the current time

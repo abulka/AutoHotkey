@@ -4,6 +4,7 @@ Units
     Spider|/give 10 armsptk 0
     Titan (Bantha)|/give 10 armbanth 0
     Butler - Fast Assist / Repair Bot|/give 10 armfark 0
+    DUMMYCx TEST UNIT|/give 10 armcom 0
 Buildings
     Construction Turret|/give 1 armnanotc 0
     Tech 2 Lab|/give 1 armalab 0
