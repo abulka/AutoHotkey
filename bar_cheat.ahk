@@ -55,6 +55,8 @@ LoadCheatCodes() {
             No cost ON|/nocost
             No cost OFF|/nocost 0
         )"
+        ; Remove leading spaces from the default cheats
+        defaultCheats := RegExReplace(defaultCheats, "m)^\s+", "")
         FileAppend(defaultCheats, CheatCodesFile)
     }
 
@@ -155,11 +157,28 @@ ShowGui() {
 
 PopulateTreeView(TreeView, cheats) {
     TreeView.Delete()
+    itemMap := Map()  ; Store mapping of items to their command strings
+    
     for category, cheatList in cheats {
-        parentItem := TreeView.Add("", category)  ; First parameter should be "" for root items
-        for cheat in cheatList
-            TreeView.Add(parentItem, cheat.name)  ; Add child items under parent
+        ; Add category with no icon
+        parentId := TreeView.Add(category, 0, "")
+        
+        ; Verify that parentId is an integer
+        if !IsInteger(parentId) {
+            MsgBox "parentId is not an integer: " parentId
+            Return
+        }
+        
+        ; Add cheats under category with no icon
+        for cheat in cheatList {
+            childId := TreeView.Add(cheat.name, parentId, "")
+            itemMap[childId] := cheat.code
+        }
     }
+    
+    ; Store the item map for later use
+    TreeView.itemMap := itemMap
+    
     ; Get first item and expand it
     if firstItem := TreeView.GetNext()
         TreeView.Modify(firstItem, "Expand")
