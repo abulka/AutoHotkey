@@ -257,13 +257,23 @@ DecrementAmount(*) {
 PasteSelectedCode(*) {
     global gGui, AmountBox
     
-    saved := gGui.Submit(false)
-    if !saved.HasProp("SelectedCheat") || saved.SelectedCheat = ""
-        return
+    ; Get the selected item's ID number
+    selectedItemId := TreeView.GetSelection()
     
-    ; Extract the cheat code
-    selectedText := saved.SelectedCheat
-    cheatCode := StrSplit(selectedText, "|")[2]
+    ; Check if an item is selected
+    if !selectedItemId {
+        return
+    }
+    
+    ; Check if the selected item is a child item (has a parent)
+    if !TreeView.GetParent(selectedItemId) {
+        return
+    }
+    
+    ; Get the item's text and associated cheat code
+    itemText := TreeView.GetText(selectedItemId)
+    itemMap := TreeView.itemMap
+    cheatCode := itemMap[selectedItemId]
     
     ; Get the edited amount from the text box if the command is /give and has a number
     if InStr(cheatCode, "/give") && RegExMatch(cheatCode, " (\d+) ") {
@@ -305,14 +315,15 @@ PasteSelectedCode(*) {
     Sleep(50)
 
     ; Send each character with a delay
+    ; MsgBox cheatCode
     for char in StrSplit(cheatCode) {
         SendInput(char)
-        Sleep(30)
+        Sleep(60)
     }
     
     ; Restore mouse position after delay
     Sleep(300)
-    MouseMove(mouseX, mouseY)
+    ; MouseMove(mouseX, mouseY)
 
     Sleep(50)
     SendInput("{Enter}")
