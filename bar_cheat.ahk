@@ -155,8 +155,8 @@ ShowGui() {
     CloseBtn := gGui.Add("Button", "x170 y290 w140", "Close (Esc)")
     
     ; Add Debug button
-    DebugBtn := gGui.Add("Button", "x10 y330 w140", "Save Tree State (Debug)")
-    DebugBtn.OnEvent("Click", SaveTreeViewStateDebug)
+    ; DebugBtn := gGui.Add("Button", "x10 y330 w140", "Save Tree State (Debug)")
+    ; DebugBtn.OnEvent("Click", SaveTreeViewStateDebug)
     
     ; Button handlers
     PasteBtn.OnEvent("Click", PasteSelectedCode)
@@ -390,7 +390,7 @@ PasteSelectedCode(*) {
     
     ; Restore mouse position after delay
     Sleep(300)
-    ; MouseMove(mouseX, mouseY)
+    MouseMove(mouseX, mouseY)
 
     Sleep(50)
     SendInput("{Enter}")
