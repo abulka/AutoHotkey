@@ -1,187 +1,81 @@
-Bots
-    Tick - Fast Scout Bot - Tech Level 1|/give 10 armflea 0
-    Pawn - Fast Infantry Bot - Tech Level 1|/give 10 armpw 0
-    Construction Bot - Tech 1 Constructor - Tech Level 1|/give 10 armck 0
-    Rocketeer - Rocket Bot - good vs. static defenses - Tech Level 1|/give 10 armrock 0
-    Crossbow - Amphibious Anti-air Bot - Tech Level 1|/give 10 armjeth 0
-    Mace - Light Plasma Bot - Tech Level 1|/give 10 armham 0
-    Lazarus - Stealthy Rez / Repair / Reclaim Bot - Tech Level 1|/give 10 armrectr 0
-    Centurion - Anti-Swarm Bot - Tech Level 1|/give 10 armwar 0
-    Armada Commander - Commander - Tech Level 1|/give 10 armcom 0
-    Tumbleweed - Amphibious Rolling Bomb - Tech Level 2|/give 10 armvader 0
-
-Vehicles
-     - Light Scout Vehicle - Tech Level 1|/give 10 armfav 0
-     - Stealthy Minelayer / Minesweeper - Tech Level 1|/give 10 armmlv 0
-     - Fast Assault Tank - Tech Level 1|/give 10 armflash 0
-     - Light Artillery Vehicle - Tech Level 1|/give 10 armart 0
-     - Tech 1 Constructor - Tech Level 1|/give 10 armcv 0
-     - Amphibious Construction Vehicle - Tech Level 1|/give 10 armbeaver 0
-     - Missile Truck - Tech Level 1|/give 10 armsam 0
-     - Light Amphibious Tank - Tech Level 1|/give 10 armpincer 0
-     - Medium Assault Tank - Tech Level 1|/give 10 armstump 0
-     - Twin Medium Rocket Launcher - Tech Level 1|/give 10 armjanus 0
-     - Radar Jammer Vehicle - Tech Level 2|/give 10 armjam 0
-     - Radar Vehicle - Tech Level 2|/give 10 armseer 0
-     - Stealth Tank - Tech Level 2|/give 10 armgremlin 0
-     - Combat Engineer - Tech Level 2|/give 10 armconsul 0
-     - Mobile Artillery - Tech Level 2|/give 10 armmart 0
-     - Lightning Tank - Tech Level 2|/give 10 armlatnk 0
-     - Anti-Air Flak Vehicle - Tech Level 2|/give 10 armyork 0
-     - Tech 2 Constructor - Tech Level 2|/give 10 armacv 0
-     - Heavy Amphibious Tank - Tech Level 2|/give 10 armcroc 0
-     - Stealthy Rocket Launcher - good vs. static defense - Tech Level 2|/give 10 armmerl 0
-     - Heavy Assault Tank - Tech Level 2|/give 10 armbull 0
-     - Mobile Tachyon Weapon - Tech Level 2|/give 10 armmanni 0
-     - Experimental Terminator Tank - Tech Level 3|/give 10 armthor 0
-
-Aircraft
-     - Scout - Tech Level 1|/give 10 armpeep 0
-     - Light Air Transport - Tech Level 1|/give 10 armatlas 0
-     - Fighter - Tech Level 1|/give 10 armfig 0
-     - Seaplane Swarmer - Tech Level 1|/give 10 armsfig 0
-     - Tech 1 Constructor - Tech Level 1|/give 10 armca 0
-     - Advanced Radar / Sonar Plane - Tech Level 1|/give 10 armsehak 0
-     - Light Gunship - Tech Level 1|/give 10 armkam 0
-     - Bomber - Tech Level 1|/give 10 armthund 0
-     - Tech 1 Constructor - Tech Level 1|/give 10 armcsa 0
-     - Seaplane Gunship - Tech Level 1|/give 10 armsaber 0
-     - Seaplane Bomber - Tech Level 1|/give 10 armsb 0
-     - Torpedo Gunship - Tech Level 1|/give 10 armseap 0
-     - Stealth Fighter - Tech Level 2|/give 10 armhawk 0
-     - Radar / Sonar Plane - Tech Level 2|/give 10 armawac 0
-     - Strategic Bomber - Tech Level 2|/give 10 armpnix 0
-     - Gunship - Tech Level 2|/give 10 armbrawl 0
-     - Stealthy Armed Heavy Transport - Tech Level 2|/give 10 armdfly 0
-     - Tech 2 Constructor - Tech Level 2|/give 10 armaca 0
-     - Torpedo Bomber - Tech Level 2|/give 10 armlance 0
-     - EMP Bomber - Tech Level 2|/give 10 armstil 0
-     - Rapid Assault Gunship - Tech Level 2|/give 10 armblade 0
-     - Atomic Bomber - Tech Level 2|/give 10 armliche 0
-
-Ships
-     - Stealthy Patrol Boat / Light Anti Air / Sonar - Tech Level 1|/give 10 armpt 0
-     - Fast Assault Corvette - Tech Level 1|/give 10 armdecade 0
-     - Tech 1 Constructor - Tech Level 1|/give 10 armcs 0
-     - Resurrection Sub - Tech Level 1|/give 10 armrecl 0
-     - Assault Frigate - Tech Level 1|/give 10 armpship 0
-     - Submarine - Tech Level 1|/give 10 armsub 0
-     - Destroyer - Tech Level 1|/give 10 armroy 0
-     - Radar Jammer Ship - Tech Level 2|/give 10 armsjam 0
-     - Naval Engineer - Tech Level 2|/give 10 armmls 0
-     - Fast Raider/Skirmisher - Tech Level 2|/give 10 armlship 0
-     - Tech 2 Constructor - Tech Level 2|/give 10 armacsub 0
-     - Fast Assault Submarine - Tech Level 2|/give 10 armsubk 0
-     - Anti-Air Ship - Tech Level 2|/give 10 armaas 0
-     - Cruiser - Tech Level 2|/give 10 armcrus 0
-     - Mobile Anti-Nuke, Generator, and Radar/Sonar - Tech Level 2|/give 10 armantiship 0
-     - Long-Range Battle Submarine - Tech Level 2|/give 10 armserp 0
-     - Missile Cruiser - Tech Level 2|/give 10 armmship 0
-     - Battleship - Tech Level 2|/give 10 armbats 0
-     - Flagship - Tech Level 2|/give 10 armepoch 0
-
-Hovercraft
-     - Fast Attack Hovercraft - Tech Level 1|/give 10 armsh 0
-     - Hovercraft Rocket Launcher - Tech Level 1|/give 10 armmh 0
-     - Tech 1 Constructor - Tech Level 1|/give 10 armch 0
-     - Anti-Air Hovercraft - Tech Level 1|/give 10 armah 0
-     - Hovertank - Tech Level 1|/give 10 armanac 0
-     - Heavy Hovertank - Tech Level 3|/give 10 armlun 0
-
-Factories
-     - Produces Tech 1 Ships - Tech Level 1|/give 10 armsy 0
-     - Produces Tech 1 Bots - Tech Level 1|/give 10 armlab 0
-     - Produces Tech 1 Vehicles - Tech Level 1|/give 10 armvp 0
-     - Produces Tech 1 Aircraft - Tech Level 1|/give 10 armap 0
-     - Builds Hovercraft - Tech Level 1|/give 10 armfhp 0
-     - Builds Hovercraft - Tech Level 1|/give 10 armhp 0
-     - Produces Amphibious / Underwater Units - Tech Level 1|/give 10 armamsub 0
-     - Builds Seaplanes - Tech Level 1|/give 10 armplat 0
-     - Produces Tech 2 Bots - Tech Level 2|/give 10 armalab 0
-     - Produces Tech 2 Vehicles - Tech Level 2|/give 10 armavp 0
-     - Produces Tech 2 Aircraft - Tech Level 2|/give 10 armaap 0
-     - Produces Tech 2 Ships - Tech Level 2|/give 10 armasy 0
-     - Produces Experimental Units - Tech Level 3|/give 10 armshltx 0
-     - Produces Large Amphibious Units - Tech Level 3|/give 10 armshltxuw 0
-
 Defense Buildings
-     - Light Mine - Tech Level 1|/give 10 armmine1 0
-     - Fortification - Tech Level 1|/give 10 armdrag 0
-     - Naval Fortification - Tech Level 1|/give 10 armfdrag 0
-     - Medium Mine - Tech Level 1|/give 10 armmine2 0
-     - Heavy Mine - Tech Level 1|/give 10 armmine3 0
-     - Heavy Mine, Naval Series - Tech Level 1|/give 10 armfmine3 0
-     - Light Anti-air Tower - Tech Level 1|/give 10 armrl 0
-     - Light Laser Tower - Tech Level 1|/give 10 armllt 0
-     - Floating Anti-air Tower - Tech Level 1|/give 10 armfrt 0
-     - Pop-up Torpedo Launcher - Tech Level 1|/give 10 armptl 0
-     - Offshore Torpedo Launcher - Tech Level 1|/give 10 armtl 0
-     - Beam Laser Turret - Tech Level 1|/give 10 armbeamer 0
-     - Coastal Torpedo Launcher - Tech Level 1|/give 10 armdl 0
-     - Pop-up Lightning Turret - Tech Level 1|/give 10 armclaw 0
-     - Pop-Up Anti-Air Missile Battery - Tech Level 1|/give 10 armferret 0
-     - Area Control Laser Tower - Tech Level 1|/give 10 armhlt 0
-     - Floating Heavy Laser Tower - Tech Level 1|/give 10 armfhlt 0
-     - Anti Radar / Jammer / Minefield / ScoutSpam Weapon - Tech Level 1|/give 10 armjuno 0
-     - Bomb-Resistant Medium-Range Anti-Air Missile Battery - Tech Level 1|/give 10 armcir 0
-     - Area Control Plasma Artillery - Tech Level 1|/give 10 armguard 0
-     - Advanced Fortification - Tech Level 2|/give 10 armfort 0
-     - Pop-up Gauss Cannon - Tech Level 2|/give 10 armpb 0
-     - Intrusion Countermeasure System - tracks down stealthy units - Tech Level 2|/give 10 armsd 0
-     - Anti-Air Flak Gun - Tech Level 2|/give 10 armflak 0
-     - Anti-Air Flak Gun - Naval Series - Tech Level 2|/give 10 armfflak 0
-     - Advanced Torpedo Launcher - Tech Level 2|/give 10 armatl 0
-     - Floating Rapid-fire Plasma Tower - Tech Level 2|/give 10 armkraken 0
-     - Anti-Nuke System - Tech Level 2|/give 10 armamd 0
-     - EMP Missile Launcher - Tech Level 2|/give 10 armemp 0
-     - Long Range Anti-Air Tower - Tech Level 2|/give 10 armmercury 0
-     - Cloakable Pop-up Plasma Artillery - Tech Level 2|/give 10 armamb 0
-     - Plasma Deflector - Tech Level 2|/give 10 armgate 0
-     - Tachyon Accelerator - Tech Level 2|/give 10 armanni 0
-     - Long Range Plasma Cannon - Tech Level 2|/give 10 armbrtha 0
-     - Nuclear ICBM Launcher - Tech Level 2|/give 10 armsilo 0
-     - Rapid-Fire Long-Range Plasma Cannon - Tech Level 2|/give 10 armvulc 0
+    Light Mine - Light Mine - Tech Level 1|/give 10 armmine1 0
+    Dragon's Teeth - Fortification - Tech Level 1|/give 10 armdrag 0
+    Shark's Teeth - Naval Fortification - Tech Level 1|/give 10 armfdrag 0
+    Medium Mine - Medium Mine - Tech Level 1|/give 10 armmine2 0
+    Heavy Mine - Heavy Mine - Tech Level 1|/give 10 armmine3 0
+    Heavy Mine - Heavy Mine, Naval Series - Tech Level 1|/give 10 armfmine3 0
+    Nettle - Light Anti-air Tower - Tech Level 1|/give 10 armrl 0
+    Sentry - Light Laser Tower - Tech Level 1|/give 10 armllt 0
+    Naval Nettle - Floating Anti-air Tower - Tech Level 1|/give 10 armfrt 0
+    Harpoon - Pop-up Torpedo Launcher - Tech Level 1|/give 10 armptl 0
+    Harpoon - Offshore Torpedo Launcher - Tech Level 1|/give 10 armtl 0
+    Beamer - Beam Laser Turret - Tech Level 1|/give 10 armbeamer 0
+    Anemone - Coastal Torpedo Launcher - Tech Level 1|/give 10 armdl 0
+    Dragon's Claw - Pop-up Lightning Turret - Tech Level 1|/give 10 armclaw 0
+    Ferret - Pop-Up Anti-Air Missile Battery - Tech Level 1|/give 10 armferret 0
+    Overwatch - Area Control Laser Tower - Tech Level 1|/give 10 armhlt 0
+    Manta - Floating Heavy Laser Tower - Tech Level 1|/give 10 armfhlt 0
+    Juno - Anti Radar / Jammer / Minefield / ScoutSpam Weapon - Tech Level 1|/give 10 armjuno 0
+    Chainsaw - Bomb-Resistant Medium-Range Anti-Air Missile Battery - Tech Level 1|/give 10 armcir 0
+    Gauntlet - Area Control Plasma Artillery - Tech Level 1|/give 10 armguard 0
+    Fortification Wall - Advanced Fortification - Tech Level 2|/give 10 armfort 0
+    Pit Bull - Pop-up Gauss Cannon - Tech Level 2|/give 10 armpb 0
+    Tracer - Intrusion Countermeasure System - tracks down stealthy units - Tech Level 2|/give 10 armsd 0
+    Arbalest - Anti-Air Flak Gun - Tech Level 2|/give 10 armflak 0
+    Naval Arbalest - Anti-Air Flak Gun - Naval Series - Tech Level 2|/give 10 armfflak 0
+    Moray - Advanced Torpedo Launcher - Tech Level 2|/give 10 armatl 0
+    Gorgon - Floating Rapid-fire Plasma Tower - Tech Level 2|/give 10 armkraken 0
+    Citadel - Anti-Nuke System - Tech Level 2|/give 10 armamd 0
+    Paralyzer - EMP Missile Launcher - Tech Level 2|/give 10 armemp 0
+    Mercury - Long Range Anti-Air Tower - Tech Level 2|/give 10 armmercury 0
+    Rattlesnake - Cloakable Pop-up Plasma Artillery - Tech Level 2|/give 10 armamb 0
+    Keeper - Plasma Deflector - Tech Level 2|/give 10 armgate 0
+    Pulsar - Tachyon Accelerator - Tech Level 2|/give 10 armanni 0
+    Basilica - Long Range Plasma Cannon - Tech Level 2|/give 10 armbrtha 0
+    Armageddon - Nuclear ICBM Launcher - Tech Level 2|/give 10 armsilo 0
+    Ragnarok - Rapid-Fire Long-Range Plasma Cannon - Tech Level 2|/give 10 armvulc 0
 
 Buildings
-     - Converts 70 energy into 1 metal per sec - Tech Level 1|/give 10 armfmkr 0
-     - Converts 70 energy into 1 metal per sec - Tech Level 1|/give 10 armmakr 0
-     - Perimeter Camera - Tech Level 1|/give 10 armeyes 0
-     - Produces Energy. Depends on wind strength. - Tech Level 1|/give 10 armwin 0
-     - Extracts Metal from Metalspots - Tech Level 1|/give 10 armmex 0
-     - Early Warning System - Tech Level 1|/give 10 armrad 0
-     - Produces Energy (depends on map) - Tech Level 1|/give 10 armtide 0
-     - Early Warning System - Tech Level 1|/give 10 armfrad 0
-     - Produces 20 Energy - Tech Level 1|/give 10 armsolar 0
-     - Increases Energy Storage (6000) - Tech Level 1|/give 10 armestor 0
-     - Increases Energy Storage (6000) - Tech Level 1|/give 10 armuwes 0
-     - Stealthy Cloakable Metal Extractor - Tech Level 1|/give 10 armamex 0
-     - Assist & Repair in large radius - Tech Level 1|/give 10 armnanotc 0
-     - Assist & Repair in large radius - Tech Level 1|/give 10 armnanotcplat 0
-     - Cloakable Jammer Tower - Tech Level 1|/give 10 armjamt 0
-     - Increases Metal Storage (3000) - Tech Level 1|/give 10 armmstor 0
-     - Increases Metal Storage (3000) - Tech Level 1|/give 10 armuwms 0
-     - Produces 75 Energy - Tech Level 1|/give 10 armadvsol 0
-     - Automatically Repairs Aircraft - Tech Level 1|/give 10 armasp 0
-     - Produces 300 Energy - Tech Level 1|/give 10 armgeo 0
-     - Produces 300 Energy - Tech Level 1|/give 10 armuwgeo 0
-     - Long-Range Jamming Tower - Tech Level 2|/give 10 armveil 0
-     - Extended Sonar - Tech Level 2|/give 10 armason 0
-     - Does not produce Energy, used to confuse the enemy - Tech Level 2|/give 10 armdf 0
-     - Converts 600 energy into 10.3 metal per sec - Tech Level 2|/give 10 armmmkr 0
-     - Converts 600 energy into 10.3 metal per sec - Tech Level 2|/give 10 armuwmmm 0
-     - Automatically Repairs Aircraft - Tech Level 2|/give 10 armfasp 0
-     - Long-Range Radar - Tech Level 2|/give 10 armarad 0
-     - Advanced Metal Extractor / Storage - Tech Level 2|/give 10 armmoho 0
-     - Advanced Metal Extractor / Storage - Tech Level 2|/give 10 armuwmme 0
-     - Increases Metal Storage (10000) - Tech Level 2|/give 10 armuwadvms 0
-     - Enhanced Radar Targeting - Tech Level 2|/give 10 armfatf 0
-     - Enhanced Radar Targeting, more facilities enhance accuracy - Tech Level 2|/give 10 armtarg 0
-     - Increases Energy Storage (40000) - Tech Level 2|/give 10 armuwadves 0
-     - Safe Geothermal Powerplant, produces 750 Energy - Tech Level 2|/give 10 armgmm 0
-     - Produces 1250 Energy (Hazardous) - Tech Level 2|/give 10 armageo 0
-     - Produces 1250 Energy (Hazardous) - Tech Level 2|/give 10 armuwageo 0
-     - Produces 1000 Energy - Tech Level 2|/give 10 armfus 0
-     - Produces 1050 Energy - Tech Level 2|/give 10 armckfus 0
-     - Produces 1200 Energy - Tech Level 2|/give 10 armuwfus 0
-     - Produces 3000 Energy (Hazardous) - Tech Level 2|/give 10 armafus 0
+    Naval Energy Converter - Converts 70 energy into 1 metal per sec - Tech Level 1|/give 10 armfmkr 0
+    Energy Converter - Converts 70 energy into 1 metal per sec - Tech Level 1|/give 10 armmakr 0
+    Beholder - Perimeter Camera - Tech Level 1|/give 10 armeyes 0
+    Wind Turbine - Produces Energy. Depends on wind strength. - Tech Level 1|/give 10 armwin 0
+    Metal Extractor - Extracts Metal from Metalspots - Tech Level 1|/give 10 armmex 0
+    Radar Tower - Early Warning System - Tech Level 1|/give 10 armrad 0
+    Tidal Generator - Produces Energy (depends on map) - Tech Level 1|/give 10 armtide 0
+    Naval Radar / Sonar Tower - Early Warning System - Tech Level 1|/give 10 armfrad 0
+    Solar Collector - Produces 20 Energy - Tech Level 1|/give 10 armsolar 0
+    Energy Storage - Increases Energy Storage (6000) - Tech Level 1|/give 10 armestor 0
+    Naval Energy Storage - Increases Energy Storage (6000) - Tech Level 1|/give 10 armuwes 0
+    Twilight - Stealthy Cloakable Metal Extractor - Tech Level 1|/give 10 armamex 0
+    Construction Turret - Assist & Repair in large radius - Tech Level 1|/give 10 armnanotc 0
+    Naval Construction Turret - Assist & Repair in large radius - Tech Level 1|/give 10 armnanotcplat 0
+    Sneaky Pete - Cloakable Jammer Tower - Tech Level 1|/give 10 armjamt 0
+    Metal Storage - Increases Metal Storage (3000) - Tech Level 1|/give 10 armmstor 0
+    Naval Metal Storage - Increases Metal Storage (3000) - Tech Level 1|/give 10 armuwms 0
+    Advanced Solar Collector - Produces 75 Energy - Tech Level 1|/give 10 armadvsol 0
+    Air Repair Pad - Automatically Repairs Aircraft - Tech Level 1|/give 10 armasp 0
+    Geothermal Powerplant - Produces 300 Energy - Tech Level 1|/give 10 armgeo 0
+    Geothermal Powerplant - Produces 300 Energy - Tech Level 1|/give 10 armuwgeo 0
+    Veil - Long-Range Jamming Tower - Tech Level 2|/give 10 armveil 0
+    Advanced Sonar Station - Extended Sonar - Tech Level 2|/give 10 armason 0
+    Decoy Fusion Reactor - Does not produce Energy, used to confuse the enemy - Tech Level 2|/give 10 armdf 0
+    Advanced Energy Converter - Converts 600 energy into 10.3 metal per sec - Tech Level 2|/give 10 armmmkr 0
+    Naval Advanced Energy Converter - Converts 600 energy into 10.3 metal per sec - Tech Level 2|/give 10 armuwmmm 0
+    Air Repair Pad - Automatically Repairs Aircraft - Tech Level 2|/give 10 armfasp 0
+    Advanced Radar Tower - Long-Range Radar - Tech Level 2|/give 10 armarad 0
+    Advanced Metal Extractor - Advanced Metal Extractor / Storage - Tech Level 2|/give 10 armmoho 0
+    Naval Advanced Metal Extractor - Advanced Metal Extractor / Storage - Tech Level 2|/give 10 armuwmme 0
+    Hardened Metal Storage - Increases Metal Storage (10000) - Tech Level 2|/give 10 armuwadvms 0
+    Naval Pinpointer - Enhanced Radar Targeting - Tech Level 2|/give 10 armfatf 0
+    Pinpointer - Enhanced Radar Targeting, more facilities enhance accuracy - Tech Level 2|/give 10 armtarg 0
+    Hardened Energy Storage - Increases Energy Storage (40000) - Tech Level 2|/give 10 armuwadves 0
+    Prude - Safe Geothermal Powerplant, produces 750 Energy - Tech Level 2|/give 10 armgmm 0
+    Advanced Geothermal Powerplant - Produces 1250 Energy (Hazardous) - Tech Level 2|/give 10 armageo 0
+    Advanced Geothermal Powerplant - Produces 1250 Energy (Hazardous) - Tech Level 2|/give 10 armuwageo 0
+    Fusion Reactor - Produces 1000 Energy - Tech Level 2|/give 10 armfus 0
+    Cloakable Fusion Reactor - Produces 1050 Energy - Tech Level 2|/give 10 armckfus 0
+    Naval Fusion Reactor - Produces 1200 Energy - Tech Level 2|/give 10 armuwfus 0
+    Advanced Fusion Reactor - Produces 3000 Energy (Hazardous) - Tech Level 2|/give 10 armafus 0
 

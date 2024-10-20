@@ -5,12 +5,12 @@ import time
 class UnitScraper:
     def __init__(self):
         self.base_urls = {
-            'Bots': 'https://www.beyondallreason.info/units/armada-bots',
-            'Vehicles': 'https://www.beyondallreason.info/units/armada-vehicles',
-            'Aircraft': 'https://www.beyondallreason.info/units/armada-aircraft',
-            'Ships': 'https://www.beyondallreason.info/units/armada-ships',
-            'Hovercraft': 'https://www.beyondallreason.info/units/armada-hovercraft',
-            'Factories': 'https://www.beyondallreason.info/units/armada-factories',
+            # 'Bots': 'https://www.beyondallreason.info/units/armada-bots',
+            # 'Vehicles': 'https://www.beyondallreason.info/units/armada-vehicles',
+            # 'Aircraft': 'https://www.beyondallreason.info/units/armada-aircraft',
+            # 'Ships': 'https://www.beyondallreason.info/units/armada-ships',
+            # 'Hovercraft': 'https://www.beyondallreason.info/units/armada-hovercraft',
+            # 'Factories': 'https://www.beyondallreason.info/units/armada-factories',
             'Defense Buildings': 'https://www.beyondallreason.info/units/armada-defense-buildings',
             'Buildings': 'https://www.beyondallreason.info/units/armada-buildings'
         }
@@ -37,15 +37,18 @@ class UnitScraper:
             # Extract text block info
             text_block = item.find('div', class_='flex-unit-grid-text-block')
             if text_block:
-                name_div = text_block.find('div', class_='flex-unit-grid-text unit-grid-text')
+                # Look for the name (it's directly in flex-unit-grid-text)
+                name_div = text_block.find('div', class_='flex-unit-grid-text', recursive=False)
+                # Look for description (it has both classes)
                 desc_div = text_block.find('div', class_='flex-unit-grid-text unit-grid-text sub')
                 
                 name = name_div.text.strip() if name_div else ''
                 description = desc_div.text.strip() if desc_div else ''
                 tech_level = self.get_tech_level(item)
                 
-                print(f"Debug - Found unit: {name} - {description}")  # Debug line
-                return f"{name} - {description} - {tech_level}|/give 10 {unit_code} 0"
+                print(f"Debug - Found unit: {name} - {description} - {tech_level}")  # Debug line
+                if name and description:  # Only return if we found both name and description
+                    return f"{name} - {description} - {tech_level}|/give 10 {unit_code} 0"
         except Exception as e:
             print(f"Error extracting unit info: {str(e)}")
         return None
@@ -59,17 +62,8 @@ class UnitScraper:
             
             soup = BeautifulSoup(response.text, 'html.parser')
             
-            # Try different selectors
-            grid = soup.find('div', class_='flex-unit-grid w-dyn-items')
-            if not grid:
-                grid = soup.find('div', class_='w-dyn-items')
-            if not grid:
-                print(f"Debug - No grid found at {url}")
-                return []
-                
-            items = grid.find_all('div', class_='flex-unit-grid-item')
-            if not items:
-                items = grid.find_all('div', class_='w-dyn-item')
+            # Find all items with the correct class
+            items = soup.find_all('div', class_='flex-unit-grid-item')
             
             print(f"Debug - Found {len(items)} items")  # Debug line
             
@@ -90,7 +84,7 @@ class UnitScraper:
             print(f"\nScraping {category}...")
             units = self.scrape_page(url)
             self.results[category] = units
-            print(f"Found {len(units)} units in {category}")  # Debug line
+            print(f"Found {len(units)} units in {category}")
             time.sleep(1)  # Be nice to the server
 
     def save_results(self, filename='bar_units.txt'):

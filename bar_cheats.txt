@@ -1,23 +1,23 @@
-Units
+Fav Units
     Constructors|/give 10 armck 0
     Construction Kbot|/give 10 armack 0
     Spider|/give 10 armsptk 0
     Titan (Bantha)|/give 10 armbanth 0
     Butler - Fast Assist / Repair Bot|/give 10 armfark 0
     DUMMYX TEST UNIT|/give 10 armcom 0
-Buildings
+Fav Buildings
     Construction Turret|/give 1 armnanotc 0
     Tech 2 Lab|/give 1 armalab 0
     Tech 3 Lab|/give 1 armshltx 0
     Advanced Radar|/give 1 armarad 0
     Shield|/give 1 armgate 0
-Weapons
+Fav Weapons
     Anti Missile (Ferret)|/give 1 armferret 0
     Flak|/give 1 armflak 0
     Big Bertha|/give 1 armbrtha 0
     Mobile Tachyon Weapon|/give 2 armmanni 0
     Ragnarok - Rapid-Fire Long-Range Plasma Cannon|/give 1 armvulc 0
-Aircraft
+Fav Aircraft
     Strategic Bomber|/give 20 armpnix 0
     Atomic Bomber|/give 2 armliche 0
     Advanced Construction Aircraft|/give 10 armaca 0
@@ -135,44 +135,45 @@ _Factories
      - Produces Large Amphibious Units - Tech Level 3|/give 10 armshltxuw 0
 
 _Defense Buildings
-     - Light Mine - Tech Level 1|/give 10 armmine1 0
-     - Fortification - Tech Level 1|/give 10 armdrag 0
-     - Naval Fortification - Tech Level 1|/give 10 armfdrag 0
-     - Medium Mine - Tech Level 1|/give 10 armmine2 0
-     - Heavy Mine - Tech Level 1|/give 10 armmine3 0
-     - Heavy Mine, Naval Series - Tech Level 1|/give 10 armfmine3 0
-     - Light Anti-air Tower - Tech Level 1|/give 10 armrl 0
-     - Light Laser Tower - Tech Level 1|/give 10 armllt 0
-     - Floating Anti-air Tower - Tech Level 1|/give 10 armfrt 0
-     - Pop-up Torpedo Launcher - Tech Level 1|/give 10 armptl 0
-     - Offshore Torpedo Launcher - Tech Level 1|/give 10 armtl 0
-     - Beam Laser Turret - Tech Level 1|/give 10 armbeamer 0
-     - Coastal Torpedo Launcher - Tech Level 1|/give 10 armdl 0
-     - Pop-up Lightning Turret - Tech Level 1|/give 10 armclaw 0
-     - Pop-Up Anti-Air Missile Battery - Tech Level 1|/give 10 armferret 0
-     - Area Control Laser Tower - Tech Level 1|/give 10 armhlt 0
-     - Floating Heavy Laser Tower - Tech Level 1|/give 10 armfhlt 0
-     - Anti Radar / Jammer / Minefield / ScoutSpam Weapon - Tech Level 1|/give 10 armjuno 0
-     - Bomb-Resistant Medium-Range Anti-Air Missile Battery - Tech Level 1|/give 10 armcir 0
-     - Area Control Plasma Artillery - Tech Level 1|/give 10 armguard 0
-     - Advanced Fortification - Tech Level 2|/give 10 armfort 0
-     - Pop-up Gauss Cannon - Tech Level 2|/give 10 armpb 0
-     - Intrusion Countermeasure System - tracks down stealthy units - Tech Level 2|/give 10 armsd 0
-     - Anti-Air Flak Gun - Tech Level 2|/give 10 armflak 0
-     - Anti-Air Flak Gun - Naval Series - Tech Level 2|/give 10 armfflak 0
-     - Advanced Torpedo Launcher - Tech Level 2|/give 10 armatl 0
-     - Floating Rapid-fire Plasma Tower - Tech Level 2|/give 10 armkraken 0
-     - Anti-Nuke System - Tech Level 2|/give 10 armamd 0
-     - EMP Missile Launcher - Tech Level 2|/give 10 armemp 0
-     - Long Range Anti-Air Tower - Tech Level 2|/give 10 armmercury 0
-     - Cloakable Pop-up Plasma Artillery - Tech Level 2|/give 10 armamb 0
-     - Plasma Deflector - Tech Level 2|/give 10 armgate 0
-     - Tachyon Accelerator - Tech Level 2|/give 10 armanni 0
-     - Long Range Plasma Cannon - Tech Level 2|/give 10 armbrtha 0
-     - Nuclear ICBM Launcher - Tech Level 2|/give 10 armsilo 0
-     - Rapid-Fire Long-Range Plasma Cannon - Tech Level 2|/give 10 armvulc 0
+    Light Mine - Light Mine - Tech Level 1|/give 10 armmine1 0
+    Dragon's Teeth - Fortification - Tech Level 1|/give 10 armdrag 0
+    Shark's Teeth - Naval Fortification - Tech Level 1|/give 10 armfdrag 0
+    Medium Mine - Medium Mine - Tech Level 1|/give 10 armmine2 0
+    Heavy Mine - Heavy Mine - Tech Level 1|/give 10 armmine3 0
+    Heavy Mine - Heavy Mine, Naval Series - Tech Level 1|/give 10 armfmine3 0
+    Nettle - Light Anti-air Tower - Tech Level 1|/give 10 armrl 0
+    Sentry - Light Laser Tower - Tech Level 1|/give 10 armllt 0
+    Naval Nettle - Floating Anti-air Tower - Tech Level 1|/give 10 armfrt 0
+    Harpoon - Pop-up Torpedo Launcher - Tech Level 1|/give 10 armptl 0
+    Harpoon - Offshore Torpedo Launcher - Tech Level 1|/give 10 armtl 0
+    Beamer - Beam Laser Turret - Tech Level 1|/give 10 armbeamer 0
+    Anemone - Coastal Torpedo Launcher - Tech Level 1|/give 10 armdl 0
+    Dragon's Claw - Pop-up Lightning Turret - Tech Level 1|/give 10 armclaw 0
+    Ferret - Pop-Up Anti-Air Missile Battery - Tech Level 1|/give 10 armferret 0
+    Overwatch - Area Control Laser Tower - Tech Level 1|/give 10 armhlt 0
+    Manta - Floating Heavy Laser Tower - Tech Level 1|/give 10 armfhlt 0
+    Juno - Anti Radar / Jammer / Minefield / ScoutSpam Weapon - Tech Level 1|/give 10 armjuno 0
+    Chainsaw - Bomb-Resistant Medium-Range Anti-Air Missile Battery - Tech Level 1|/give 10 armcir 0
+    Gauntlet - Area Control Plasma Artillery - Tech Level 1|/give 10 armguard 0
+    Fortification Wall - Advanced Fortification - Tech Level 2|/give 10 armfort 0
+    Pit Bull - Pop-up Gauss Cannon - Tech Level 2|/give 10 armpb 0
+    Tracer - Intrusion Countermeasure System - tracks down stealthy units - Tech Level 2|/give 10 armsd 0
+    Arbalest - Anti-Air Flak Gun - Tech Level 2|/give 10 armflak 0
+    Naval Arbalest - Anti-Air Flak Gun - Naval Series - Tech Level 2|/give 10 armfflak 0
+    Moray - Advanced Torpedo Launcher - Tech Level 2|/give 10 armatl 0
+    Gorgon - Floating Rapid-fire Plasma Tower - Tech Level 2|/give 10 armkraken 0
+    Citadel - Anti-Nuke System - Tech Level 2|/give 10 armamd 0
+    Paralyzer - EMP Missile Launcher - Tech Level 2|/give 10 armemp 0
+    Mercury - Long Range Anti-Air Tower - Tech Level 2|/give 10 armmercury 0
+    Rattlesnake - Cloakable Pop-up Plasma Artillery - Tech Level 2|/give 10 armamb 0
+    Keeper - Plasma Deflector - Tech Level 2|/give 10 armgate 0
+    Pulsar - Tachyon Accelerator - Tech Level 2|/give 10 armanni 0
+    Basilica - Long Range Plasma Cannon - Tech Level 2|/give 10 armbrtha 0
+    Armageddon - Nuclear ICBM Launcher - Tech Level 2|/give 10 armsilo 0
+    Ragnarok - Rapid-Fire Long-Range Plasma Cannon - Tech Level 2|/give 10 armvulc 0
 
-Buildings
+
+_Buildings
      - Converts 70 energy into 1 metal per sec - Tech Level 1|/give 10 armfmkr 0
      - Converts 70 energy into 1 metal per sec - Tech Level 1|/give 10 armmakr 0
      - Perimeter Camera - Tech Level 1|/give 10 armeyes 0
