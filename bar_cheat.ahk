@@ -21,6 +21,8 @@ Escape::CloseGui()
 #HotIf
 
 LoadCheatCodes() {
+    global CheatCodesFile, LastModified
+    
     ; Create default file if it doesn't exist
     if !FileExist(CheatCodesFile) {
         defaultCheats := "
@@ -31,6 +33,7 @@ LoadCheatCodes() {
             Spider|/give 10 armsptk 0
             Titan (Bantha)|/give 10 armbanth 0
             Butler - Fast Assist / Repair Bot|/give 10 armfark 0
+            DUMMYC TEST UNIT|/give 10 armcom 0
         Buildings
             Construction Turret|/give 1 armnanotc 0
             Tech 2 Lab|/give 1 armalab 0
@@ -50,19 +53,18 @@ LoadCheatCodes() {
         Game Commands
             Cheat ON|/cheat
             Infinite resources|/give resourcecheat 0
-            Toggle Visibility|/globallos 0
-            God mode control any unit|/godmode
-            No cost ON|/nocost
-            No cost OFF|/nocost 0
         )"
         ; Remove leading spaces from the default cheats
         defaultCheats := RegExReplace(defaultCheats, "m)^\s+", "")
         FileAppend(defaultCheats, CheatCodesFile)
+        
+        ; Set LastModified to the current time
+        LastModified := FileGetTime(CheatCodesFile)
+    } else {
+        ; Update last modified time
+        LastModified := FileGetTime(CheatCodesFile)
     }
 
-    ; Update last modified time
-    LastModified := FileGetTime(CheatCodesFile)
-    
     ; Read and parse file
     fileContent := FileRead(CheatCodesFile)
     return ParseCheatFile(fileContent)
@@ -96,11 +98,15 @@ ParseCheatFile(content) {
 
 ShowGui() {
     global gGui, AmountBox, TreeView, LastModified
-    global mouseX, mouseY
+    global mouseX, mouseY, CheatCodesFile
   
     ; Check if file has been modified
-    currentModified := FileGetTime(CheatCodesFile)
-    shouldReload := currentModified != LastModified
+    if FileExist(CheatCodesFile) {
+        currentModified := FileGetTime(CheatCodesFile)
+        shouldReload := currentModified != LastModified
+    } else {
+        shouldReload := true
+    }
     
     ; Capture current mouse position
     CoordMode("Mouse", "Screen")
