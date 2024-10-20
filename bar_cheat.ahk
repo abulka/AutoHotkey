@@ -204,15 +204,29 @@ FocusWindow(hwnd) {
 }
 
 UpdateCheatAmount(*) {
-    global gGui, AmountBox
+    global TreeView, AmountBox
     
-    saved := gGui.Submit(false)
-    if !saved.HasProp("SelectedCheat") || saved.SelectedCheat = ""
+    ; Get the selected item's ID number
+    selectedItemId := TreeView.GetSelection()
+    
+    ; Check if an item is selected
+    if !selectedItemId {
+        AmountBox.Value := ""
         return
+    }
     
-    ; Extract the number from the selected cheat code if it starts with /give and has a number
-    selectedText := saved.SelectedCheat
-    cheatCode := StrSplit(selectedText, "|")[2]
+    ; Check if the selected item is a child item (has a parent)
+    if !TreeView.GetParent(selectedItemId) {
+        AmountBox.Value := ""
+        return
+    }
+    
+    ; Get the item's text and associated cheat code
+    itemText := TreeView.GetText(selectedItemId)
+    itemMap := TreeView.itemMap
+    cheatCode := itemMap[selectedItemId]
+    
+    ; Extract the number from the cheat code if it starts with /give and has a number
     if InStr(cheatCode, "/give") && RegExMatch(cheatCode, " (\d+) ") {
         amount := RegExReplace(cheatCode, ".*? (\d+) .*", "$1")
         ; Update the text box with the extracted amount
