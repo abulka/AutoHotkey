@@ -5,12 +5,12 @@ import time
 class UnitScraper:
     def __init__(self):
         self.base_urls = {
-            # 'Bots': 'https://www.beyondallreason.info/units/armada-bots',
-            # 'Vehicles': 'https://www.beyondallreason.info/units/armada-vehicles',
-            # 'Aircraft': 'https://www.beyondallreason.info/units/armada-aircraft',
-            # 'Ships': 'https://www.beyondallreason.info/units/armada-ships',
-            # 'Hovercraft': 'https://www.beyondallreason.info/units/armada-hovercraft',
-            # 'Factories': 'https://www.beyondallreason.info/units/armada-factories',
+            'Bots': 'https://www.beyondallreason.info/units/armada-bots',
+            'Vehicles': 'https://www.beyondallreason.info/units/armada-vehicles',
+            'Aircraft': 'https://www.beyondallreason.info/units/armada-aircraft',
+            'Ships': 'https://www.beyondallreason.info/units/armada-ships',
+            'Hovercraft': 'https://www.beyondallreason.info/units/armada-hovercraft',
+            'Factories': 'https://www.beyondallreason.info/units/armada-factories',
             'Defense Buildings': 'https://www.beyondallreason.info/units/armada-defense-buildings',
             'Buildings': 'https://www.beyondallreason.info/units/armada-buildings'
         }
@@ -27,7 +27,16 @@ class UnitScraper:
                 return f'Tech Level {level}'
         return 'Unknown Tech Level'
 
-    def extract_unit_info(self, item):
+    def get_dynamic_value(self, category, tech_level):
+        if category in ['Bots', 'Vehicles', 'Aircraft']:
+            return 10
+        elif category in ['Buildings', 'Factories']:
+            return 1
+        elif tech_level == 'Tech Level 3':
+            return 5
+        return 1
+
+    def extract_unit_info(self, item, category):
         try:
             # Extract href
             link = item.find('a')
@@ -46,14 +55,16 @@ class UnitScraper:
                 description = desc_div.text.strip() if desc_div else ''
                 tech_level = self.get_tech_level(item)
                 
+                dynamic_value = self.get_dynamic_value(category, tech_level)
+                
                 print(f"Debug - Found unit: {name} - {description} - {tech_level}")  # Debug line
                 if name and description:  # Only return if we found both name and description
-                    return f"{name} - {description} - {tech_level}|/give 10 {unit_code} 0"
+                    return f"{name} - {description} - {tech_level}|/give {dynamic_value} {unit_code} 0"
         except Exception as e:
             print(f"Error extracting unit info: {str(e)}")
         return None
 
-    def scrape_page(self, url):
+    def scrape_page(self, url, category):
         try:
             response = requests.get(url, headers=self.headers)
             response.raise_for_status()
@@ -69,7 +80,7 @@ class UnitScraper:
             
             results = []
             for item in items:
-                info = self.extract_unit_info(item)
+                info = self.extract_unit_info(item, category)
                 if info:
                     results.append(info)
             
@@ -82,7 +93,7 @@ class UnitScraper:
     def scrape_all(self):
         for category, url in self.base_urls.items():
             print(f"\nScraping {category}...")
-            units = self.scrape_page(url)
+            units = self.scrape_page(url, category)
             self.results[category] = units
             print(f"Found {len(units)} units in {category}")
             time.sleep(1)  # Be nice to the server
@@ -90,7 +101,7 @@ class UnitScraper:
     def save_results(self, filename='bar_units.txt'):
         with open(filename, 'w', encoding='utf-8') as f:
             for category, units in self.results.items():
-                f.write(f"{category}\n")
+                f.write(f"_{category}\n")
                 for unit in units:
                     f.write(f"    {unit}\n")
                 f.write("\n")
