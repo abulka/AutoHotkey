@@ -12,6 +12,7 @@ global LastModified := ""
 global TreeView := ""
 global TreeViewStateFile := A_ScriptDir "\bar_treeview_state.txt"
 global ImageViewer := ""
+global CheatCodeDisplay := ""
 
 ; Define the hotkey (Alt+C)
 !c::ShowGui()
@@ -102,7 +103,7 @@ ParseCheatFile(content) {
 }
 
 ShowGui() {
-    global gGui, AmountBox, TreeView, LastModified, ImageViewer
+    global gGui, AmountBox, TreeView, LastModified, ImageViewer, CheatCodeDisplay
     global mouseX, mouseY, CheatCodesFile, TreeViewStateFile
   
     ; Check if file has been modified
@@ -157,6 +158,9 @@ ShowGui() {
     
     ; Add image viewer with fixed size and centered
     ImageViewer := gGui.Add("Picture", "x72 y330 w256 h256 +Center")
+    
+    ; Add cheat code display
+    CheatCodeDisplay := gGui.Add("Text", "x10 y600 w400", "")
 
     ; Button handlers
     PasteBtn.OnEvent("Click", PasteSelectedCode)
@@ -268,7 +272,7 @@ FocusWindow(hwnd) {
 }
 
 UpdateCheatAmount(*) {
-    global TreeView, AmountBox, ImageViewer
+    global TreeView, AmountBox, ImageViewer, CheatCodeDisplay
     
     ; Get the selected item's ID number
     selectedItemId := TreeView.GetSelection()
@@ -277,6 +281,7 @@ UpdateCheatAmount(*) {
     if !selectedItemId {
         AmountBox.Value := ""
         ImageViewer.Value := ""
+        CheatCodeDisplay.Value := ""
         return
     }
     
@@ -284,6 +289,7 @@ UpdateCheatAmount(*) {
     if !TreeView.GetParent(selectedItemId) {
         AmountBox.Value := ""
         ImageViewer.Value := ""
+        CheatCodeDisplay.Value := ""
         return
     }
     
@@ -317,24 +323,59 @@ UpdateCheatAmount(*) {
     } else {
         ImageViewer.Value := ""
     }
+    
+    ; Update the cheat code display
+    CheatCodeDisplay.Value := cheatCode
 }
 
 IncrementAmount(*) {
-    global AmountBox
+    global AmountBox, CheatCodeDisplay
     
     amount := AmountBox.Value
     if amount != ""
         amount++
     AmountBox.Value := amount
+    
+    ; Update the cheat code display with the new amount
+    UpdateCheatCodeDisplay()
 }
 
 DecrementAmount(*) {
-    global AmountBox
+    global AmountBox, CheatCodeDisplay
     
     amount := AmountBox.Value
     if amount != ""
         amount--
     AmountBox.Value := amount
+    
+    ; Update the cheat code display with the new amount
+    UpdateCheatCodeDisplay()
+}
+
+UpdateCheatCodeDisplay() {
+    global TreeView, AmountBox, CheatCodeDisplay
+    
+    ; Get the selected item's ID number
+    selectedItemId := TreeView.GetSelection()
+    
+    ; Check if an item is selected
+    if !selectedItemId {
+        CheatCodeDisplay.Value := ""
+        return
+    }
+    
+    ; Get the item's text and associated cheat code
+    itemMap := TreeView.itemMap
+    cheatCode := itemMap[selectedItemId]
+    
+    ; Get the edited amount from the text box if the command is /give and has a number
+    if InStr(cheatCode, "/give") && RegExMatch(cheatCode, " (\d+) ") {
+        amount := AmountBox.Value
+        cheatCode := RegExReplace(cheatCode, " (\d+) ", " " amount " ")
+    }
+    
+    ; Update the cheat code display
+    CheatCodeDisplay.Value := cheatCode
 }
 
 PasteSelectedCode(*) {
