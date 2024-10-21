@@ -125,16 +125,16 @@ ShowGui() {
         }
     }
     
-    ; Create new GUI
+    ; Create new GUI with increased width
     gGui := Gui("+AlwaysOnTop +Owner")
     gGui.Title := "Total Annihilation Cheat Codes"
     gGui.SetFont("s10")
     
     ; Add instructions
-    gGui.Add("Text", "x10 y10 w300", "Select a cheat code and press Enter or click Paste:")
+    gGui.Add("Text", "x10 y10 w400", "Select a cheat code and press Enter or click Paste:")
     
     ; Add TreeView
-    TreeView := gGui.Add("TreeView", "x10 y40 w300 h200 vSelectedCheat")
+    TreeView := gGui.Add("TreeView", "x10 y40 w400 h200 vSelectedCheat")
     TreeView.OnEvent("DoubleClick", PasteSelectedCode)
     TreeView.OnEvent("ItemSelect", UpdateCheatAmount)
     
@@ -152,11 +152,11 @@ ShowGui() {
     DecBtn := gGui.Add("Button", "x220 y250 w30", "-")
     
     ; Add Paste and Close buttons
-    PasteBtn := gGui.Add("Button", "x10 y290 w140", "Paste Code (Enter)")
-    CloseBtn := gGui.Add("Button", "x170 y290 w140", "Close (Esc)")
+    PasteBtn := gGui.Add("Button", "x10 y290 w190", "Paste Code (Enter)")
+    CloseBtn := gGui.Add("Button", "x210 y290 w190", "Close (Esc)")
     
     ; Add image viewer
-    ImageViewer := gGui.Add("Picture", "x10 y330 w300 h300")
+    ImageViewer := gGui.Add("Picture", "x10 y330 w400 h300")
 
     ; Button handlers
     PasteBtn.OnEvent("Click", PasteSelectedCode)

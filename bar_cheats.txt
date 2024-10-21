@@ -14,7 +14,7 @@ Fav Buildings
 Fav Weapons
     Anti Missile (Ferret)|/give 1 armferret 0
     Flak|/give 1 armflak 0
-    Big Bertha|/give 1 armbrtha 0
+    Basilica|/give 1 armbrtha 0
     Mobile Tachyon Weapon|/give 2 armmanni 0
     Ragnarok - Rapid-Fire Long-Range Plasma Cannon|/give 1 armvulc 0
 Fav Aircraft
