@@ -152,6 +152,12 @@ ShowGui() {
     IncBtn := gGui.Add("Button", "x180 y250 w30", "+")
     DecBtn := gGui.Add("Button", "x220 y250 w30", "-")
     
+    ; Add buttons to set specific amounts
+    Btn1 := gGui.Add("Button", "x260 y250 w30", "1")
+    Btn2 := gGui.Add("Button", "x300 y250 w30", "2")
+    Btn5 := gGui.Add("Button", "x340 y250 w30", "5")
+    Btn10 := gGui.Add("Button", "x380 y250 w30", "10")
+    
     ; Add Paste and Close buttons
     PasteBtn := gGui.Add("Button", "x10 y290 w190", "Paste Code (Enter)")
     CloseBtn := gGui.Add("Button", "x210 y290 w190", "Close (Esc)")
@@ -167,6 +173,10 @@ ShowGui() {
     CloseBtn.OnEvent("Click", CloseGui)
     IncBtn.OnEvent("Click", IncrementAmount)
     DecBtn.OnEvent("Click", DecrementAmount)
+    Btn1.OnEvent("Click", (*) => SetAmount(1))
+    Btn2.OnEvent("Click", (*) => SetAmount(2))
+    Btn5.OnEvent("Click", (*) => SetAmount(5))
+    Btn10.OnEvent("Click", (*) => SetAmount(10))
     
     ; Handle GUI close event
     gGui.OnEvent("Close", CloseGui)
@@ -352,6 +362,15 @@ DecrementAmount(*) {
     UpdateCheatCodeDisplay()
 }
 
+SetAmount(amount) {
+    global AmountBox, CheatCodeDisplay
+    
+    AmountBox.Value := amount
+    
+    ; Update the cheat code display with the new amount
+    UpdateCheatCodeDisplay()
+}
+
 UpdateCheatCodeDisplay() {
     global TreeView, AmountBox, CheatCodeDisplay
     
@@ -379,7 +398,7 @@ UpdateCheatCodeDisplay() {
 }
 
 PasteSelectedCode(*) {
-    global gGui, AmountBox, TreeView, TreeViewStateFile
+    global gGui, AmountBox, TreeView, TreeViewStateFile, mouseX, mouseY
     
     ; Save TreeView state before hiding the GUI
     SaveTreeViewState(TreeView, TreeViewStateFile)
