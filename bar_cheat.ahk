@@ -189,7 +189,7 @@ PopulateTreeView(TreeView, cheats) {
     imageIndexMap := Map()  ; Store mapping of unit names to image indices
     
     ; Load images into ImageList and map unit names to image indices
-    for file in Dir("unit_images\*.png") {
+    for file in File.Dir("unit_images\*.png") {
         unitName := StrReplace(file.Name, ".png", "")
         imageIndex := IL_Add(ImageListID, file.FullPath)
         imageIndexMap[unitName] := imageIndex
