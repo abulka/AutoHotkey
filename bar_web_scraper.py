@@ -1,8 +1,13 @@
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service as ChromeService
+from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
 import requests
 from bs4 import BeautifulSoup
 import time
 from PIL import Image
-import pillow_avif  # Required for AVIF support
+import pillow_avif
 import io
 import os
 
@@ -86,7 +91,7 @@ class UnitScraper:
             # Extract text block info
             text_block = item.find('div', class_='flex-unit-grid-text-block')
             if text_block:
-                name_div = text_block.find('div', class_='flex-unit-grid-text', recursive=False)
+                name_div = text_block.find('div', class_='flex-unit-grid-text')
                 desc_div = text_block.find('div', class_='flex-unit-grid-text unit-grid-text sub')
                 
                 name = name_div.text.strip() if name_div else ''
@@ -104,28 +109,44 @@ class UnitScraper:
 
     def scrape_page(self, url, category):
         try:
-            response = requests.get(url, headers=self.headers)
-            response.raise_for_status()
+            results = []
             
-            print(f"Debug - Response status code: {response.status_code}")
+            # Set up Selenium WebDriver
+            options = Options()
+            options.headless = True
+            driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
+            driver.get(url)
             
-            soup = BeautifulSoup(response.text, 'html.parser')
-            items = soup.find_all('div', class_='flex-unit-grid-item')
+            # Wait for the page to load completely
+            time.sleep(5)
+            
+            # Get the page source and parse it with BeautifulSoup
+            soup = BeautifulSoup(driver.page_source, 'html.parser')
+            driver.quit()
+            
+            # Update the selector to match the provided HTML structure
+            container = soup.select_one('div[data-w-tab="Grid"] > div.w-dyn-list > div.flex-unit-grid.w-dyn-items')
+            if not container:
+                print(f"Warning: Could not find main container for {category}")
+                return []
+                
+            # Find all unit items within the container
+            items = container.find_all('div', class_='flex-unit-grid-item')
             
             print(f"Debug - Found {len(items)} items")
             
-            results = []
             for item in items:
                 info = self.extract_unit_info(item, category)
                 if info:
                     results.append(info)
             
             return results
-            
+        
         except Exception as e:
             print(f"Error scraping {url}: {str(e)}")
             return []
 
+    
     def scrape_all(self):
         for category, url in self.base_urls.items():
             print(f"\nScraping {category}...")
