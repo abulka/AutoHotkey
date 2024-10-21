@@ -11,6 +11,7 @@ global CheatCodesFile := A_ScriptDir "\bar_cheats.txt"
 global LastModified := ""
 global TreeView := ""
 global TreeViewStateFile := A_ScriptDir "\bar_treeview_state.txt"
+global ImageListID := ""
 
 ; Define the hotkey (Alt+C)
 !c::ShowGui()
@@ -101,7 +102,7 @@ ParseCheatFile(content) {
 }
 
 ShowGui() {
-    global gGui, AmountBox, TreeView, LastModified
+    global gGui, AmountBox, TreeView, LastModified, ImageListID
     global mouseX, mouseY, CheatCodesFile, TreeViewStateFile
   
     ; Check if file has been modified
@@ -132,8 +133,12 @@ ShowGui() {
     ; Add instructions
     gGui.Add("Text", "x10 y10 w300", "Select a cheat code and press Enter or click Paste:")
     
-    ; Add TreeView
-    TreeView := gGui.Add("TreeView", "x10 y40 w300 h200 vSelectedCheat")
+    ; Create ImageList
+    ImageListID := IL_Create(10)
+    LoadImagesToImageList(ImageListID, "unit_images")
+    
+    ; Add TreeView with ImageList
+    TreeView := gGui.Add("TreeView", "x10 y40 w300 h200 vSelectedCheat ImageList" . ImageListID)
     TreeView.OnEvent("DoubleClick", PasteSelectedCode)
     TreeView.OnEvent("ItemSelect", UpdateCheatAmount)
     
@@ -172,9 +177,23 @@ ShowGui() {
     ForceActivateWindow(gGui)
 }
 
+LoadImagesToImageList(ImageListID, imageDir) {
+    for file in Dir(imageDir "\*.png") {
+        IL_Add(ImageListID, file.FullPath)
+    }
+}
+
 PopulateTreeView(TreeView, cheats) {
     TreeView.Delete()
     itemMap := Map()  ; Store mapping of items to their command strings
+    imageIndexMap := Map()  ; Store mapping of unit names to image indices
+    
+    ; Load images into ImageList and map unit names to image indices
+    for file in Dir("unit_images\*.png") {
+        unitName := StrReplace(file.Name, ".png", "")
+        imageIndex := IL_Add(ImageListID, file.FullPath)
+        imageIndexMap[unitName] := imageIndex
+    }
     
     for category, cheatList in cheats {
         ; Add category with no icon
@@ -186,9 +205,11 @@ PopulateTreeView(TreeView, cheats) {
             Return
         }
         
-        ; Add cheats under category with no icon
+        ; Add cheats under category with corresponding icon if available
         for cheat in cheatList {
-            childId := TreeView.Add(cheat.name, parentId, "")
+            unitName := StrReplace(cheat.name, " ", "")
+            imageIndex := imageIndexMap.Has(unitName) ? imageIndexMap[unitName] : 0
+            childId := TreeView.Add(cheat.name, parentId, imageIndex)
             itemMap[childId] := cheat.code
         }
     }
