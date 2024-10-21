@@ -178,8 +178,8 @@ ShowGui() {
 }
 
 LoadImagesToImageList(ImageListID, imageDir) {
-    for file in File.Dir(imageDir "\*.png") {
-        IL_Add(ImageListID, file.FullPath)
+    Loop Files, imageDir "\*.png" {
+        IL_Add(ImageListID, A_LoopFilePath)
     }
 }
 
@@ -189,9 +189,9 @@ PopulateTreeView(TreeView, cheats) {
     imageIndexMap := Map()  ; Store mapping of unit names to image indices
     
     ; Load images into ImageList and map unit names to image indices
-    for file in File.Dir("unit_images\*.png") {
-        unitName := StrReplace(file.Name, ".png", "")
-        imageIndex := IL_Add(ImageListID, file.FullPath)
+    Loop Files, "unit_images\*.png" {
+        unitName := StrReplace(A_LoopFileName, ".png", "")
+        imageIndex := IL_Add(ImageListID, A_LoopFilePath)
         imageIndexMap[unitName] := imageIndex
     }
     
