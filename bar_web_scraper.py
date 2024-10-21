@@ -15,13 +15,13 @@ class UnitScraper:
     def __init__(self):
         self.base_urls = {
             'Bots': 'https://www.beyondallreason.info/units/armada-bots',
-            # 'Vehicles': 'https://www.beyondallreason.info/units/armada-vehicles',
-            # 'Aircraft': 'https://www.beyondallreason.info/units/armada-aircraft',
-            # 'Ships': 'https://www.beyondallreason.info/units/armada-ships',
-            # 'Hovercraft': 'https://www.beyondallreason.info/units/armada-hovercraft',
-            # 'Factories': 'https://www.beyondallreason.info/units/armada-factories',
-            # 'Defense Buildings': 'https://www.beyondallreason.info/units/armada-defense-buildings',
-            # 'Buildings': 'https://www.beyondallreason.info/units/armada-buildings'
+            'Vehicles': 'https://www.beyondallreason.info/units/armada-vehicles',
+            'Aircraft': 'https://www.beyondallreason.info/units/armada-aircraft',
+            'Ships': 'https://www.beyondallreason.info/units/armada-ships',
+            'Hovercraft': 'https://www.beyondallreason.info/units/armada-hovercraft',
+            'Factories': 'https://www.beyondallreason.info/units/armada-factories',
+            'Defense Buildings': 'https://www.beyondallreason.info/units/armada-defense-buildings',
+            'Buildings': 'https://www.beyondallreason.info/units/armada-buildings'
         }
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
@@ -62,8 +62,7 @@ class UnitScraper:
             if img.mode != 'RGB':
                 img = img.convert('RGB')
             
-            # Resize to 32x32
-            img = img.resize((32, 32), Image.Resampling.LANCZOS)
+            img = img.resize((256, 256), Image.Resampling.LANCZOS)
             
             # Save the image
             output_path = os.path.join(self.image_dir, f"{unit_code}.png")
