@@ -11,7 +11,7 @@ global CheatCodesFile := A_ScriptDir "\bar_cheats.txt"
 global LastModified := ""
 global TreeView := ""
 global TreeViewStateFile := A_ScriptDir "\bar_treeview_state.txt"
-global ImageListID := ""
+global ImageViewer := ""
 
 ; Define the hotkey (Alt+C)
 !c::ShowGui()
@@ -102,7 +102,7 @@ ParseCheatFile(content) {
 }
 
 ShowGui() {
-    global gGui, AmountBox, TreeView, LastModified, ImageListID
+    global gGui, AmountBox, TreeView, LastModified, ImageViewer
     global mouseX, mouseY, CheatCodesFile, TreeViewStateFile
   
     ; Check if file has been modified
@@ -133,12 +133,8 @@ ShowGui() {
     ; Add instructions
     gGui.Add("Text", "x10 y10 w300", "Select a cheat code and press Enter or click Paste:")
     
-    ; Create ImageList
-    ImageListID := IL_Create(10)
-    LoadImagesToImageList(ImageListID, "unit_images")
-    
-    ; Add TreeView with ImageList
-    TreeView := gGui.Add("TreeView", "x10 y40 w300 h200 vSelectedCheat ImageList" . ImageListID)
+    ; Add TreeView
+    TreeView := gGui.Add("TreeView", "x10 y40 w300 h200 vSelectedCheat")
     TreeView.OnEvent("DoubleClick", PasteSelectedCode)
     TreeView.OnEvent("ItemSelect", UpdateCheatAmount)
     
@@ -159,10 +155,9 @@ ShowGui() {
     PasteBtn := gGui.Add("Button", "x10 y290 w140", "Paste Code (Enter)")
     CloseBtn := gGui.Add("Button", "x170 y290 w140", "Close (Esc)")
     
-    ; Add Debug button
-    ; DebugBtn := gGui.Add("Button", "x10 y330 w140", "Save Tree State (Debug)")
-    ; DebugBtn.OnEvent("Click", SaveTreeViewStateDebug)
-    
+    ; Add image viewer
+    ImageViewer := gGui.Add("Picture", "x10 y330 w300 h300")
+
     ; Button handlers
     PasteBtn.OnEvent("Click", PasteSelectedCode)
     CloseBtn.OnEvent("Click", CloseGui)
@@ -177,26 +172,12 @@ ShowGui() {
     ForceActivateWindow(gGui)
 }
 
-LoadImagesToImageList(ImageListID, imageDir) {
-    Loop Files, imageDir "\*.png" {
-        IL_Add(ImageListID, A_LoopFileFullPath)
-    }
-}
-
 PopulateTreeView(TreeView, cheats) {
     TreeView.Delete()
     itemMap := Map()  ; Store mapping of items to their command strings
-    imageIndexMap := Map()  ; Store mapping of unit names to image indices
-    
-    ; Load images into ImageList and map unit names to image indices
-    Loop Files, "unit_images\*.png" {
-        unitName := StrReplace(A_LoopFileName, ".png", "")
-        imageIndex := IL_Add(ImageListID, A_LoopFileFullPath)
-        imageIndexMap[unitName] := imageIndex
-    }
     
     for category, cheatList in cheats {
-        ; Add category with no icon
+        ; Add category
         parentId := TreeView.Add(category, 0, "")
         
         ; Verify that parentId is an integer
@@ -205,11 +186,9 @@ PopulateTreeView(TreeView, cheats) {
             Return
         }
         
-        ; Add cheats under category with corresponding icon if available
+        ; Add cheats under category
         for cheat in cheatList {
-            unitName := StrReplace(cheat.name, " ", "")
-            imageIndex := imageIndexMap.Has(unitName) ? imageIndexMap[unitName] : 0
-            childId := TreeView.Add(cheat.name, parentId, imageIndex)
+            childId := TreeView.Add(cheat.name, parentId, 0)
             itemMap[childId] := cheat.code
         }
     }
@@ -289,7 +268,7 @@ FocusWindow(hwnd) {
 }
 
 UpdateCheatAmount(*) {
-    global TreeView, AmountBox
+    global TreeView, AmountBox, ImageViewer
     
     ; Get the selected item's ID number
     selectedItemId := TreeView.GetSelection()
@@ -297,12 +276,14 @@ UpdateCheatAmount(*) {
     ; Check if an item is selected
     if !selectedItemId {
         AmountBox.Value := ""
+        ImageViewer.Value := ""
         return
     }
     
     ; Check if the selected item is a child item (has a parent)
     if !TreeView.GetParent(selectedItemId) {
         AmountBox.Value := ""
+        ImageViewer.Value := ""
         return
     }
     
@@ -318,6 +299,20 @@ UpdateCheatAmount(*) {
         AmountBox.Value := amount
     } else {
         AmountBox.Value := ""
+    }
+    
+    ; Extract the unit name from the cheat code and load the image if it exists
+    match := RegExMatch(cheatCode, "/give \d+ (\w+) \d+", &unitName)
+    if match {
+        imageName := unitName[1] ".png"
+        imagePath := A_ScriptDir "\unit_images\" imageName
+        if FileExist(imagePath) {
+            ImageViewer.Value := imagePath
+        } else {
+            ImageViewer.Value := ""
+        }
+    } else {
+        ImageViewer.Value := ""
     }
 }
 
