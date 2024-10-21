@@ -1,26 +1,31 @@
 import requests
 from bs4 import BeautifulSoup
 import time
+from PIL import Image
+import pillow_avif  # Required for AVIF support
+import io
+import os
 
 class UnitScraper:
     def __init__(self):
         self.base_urls = {
             'Bots': 'https://www.beyondallreason.info/units/armada-bots',
-            'Vehicles': 'https://www.beyondallreason.info/units/armada-vehicles',
-            'Aircraft': 'https://www.beyondallreason.info/units/armada-aircraft',
-            'Ships': 'https://www.beyondallreason.info/units/armada-ships',
-            'Hovercraft': 'https://www.beyondallreason.info/units/armada-hovercraft',
-            'Factories': 'https://www.beyondallreason.info/units/armada-factories',
-            'Defense Buildings': 'https://www.beyondallreason.info/units/armada-defense-buildings',
-            'Buildings': 'https://www.beyondallreason.info/units/armada-buildings'
+            # 'Vehicles': 'https://www.beyondallreason.info/units/armada-vehicles',
+            # 'Aircraft': 'https://www.beyondallreason.info/units/armada-aircraft',
+            # 'Ships': 'https://www.beyondallreason.info/units/armada-ships',
+            # 'Hovercraft': 'https://www.beyondallreason.info/units/armada-hovercraft',
+            # 'Factories': 'https://www.beyondallreason.info/units/armada-factories',
+            # 'Defense Buildings': 'https://www.beyondallreason.info/units/armada-defense-buildings',
+            # 'Buildings': 'https://www.beyondallreason.info/units/armada-buildings'
         }
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
         self.results = {}
+        self.image_dir = 'unit_images'
+        os.makedirs(self.image_dir, exist_ok=True)
 
     def get_tech_level(self, item):
-        # Check for tech levels in order
         for level in range(1, 4):
             tech_div = item.find('div', {'title': f'Tech Level {level}'}, class_='flex-unit-grid-tech')
             if tech_div and not 'w-condition-invisible' in tech_div.get('class', []):
@@ -36,19 +41,52 @@ class UnitScraper:
             return 5
         return 1
 
+    def download_and_resize_image(self, img_url, unit_code):
+        try:
+            # Download image
+            response = requests.get(img_url, headers=self.headers)
+            response.raise_for_status()
+            
+            # Save AVIF temporarily to handle the format
+            temp_avif = io.BytesIO(response.content)
+            
+            # Open with Pillow (pillow_avif plugin will handle the AVIF format)
+            img = Image.open(temp_avif)
+            
+            # Convert to RGB if necessary
+            if img.mode != 'RGB':
+                img = img.convert('RGB')
+            
+            # Resize to 32x32
+            img = img.resize((32, 32), Image.Resampling.LANCZOS)
+            
+            # Save the image
+            output_path = os.path.join(self.image_dir, f"{unit_code}.png")
+            img.save(output_path, 'PNG')
+            print(f"Saved image: {output_path}")
+            return True
+            
+        except Exception as e:
+            print(f"Error downloading/processing image for {unit_code}: {str(e)}")
+            return False
+
     def extract_unit_info(self, item, category):
         try:
-            # Extract href
+            # Extract href and unit code
             link = item.find('a')
             href = link['href'] if link else ''
             unit_code = href.split('/')[-1] if href else ''
             
+            # Extract image URL - specifically getting the flex-unit-grid-img
+            img_tag = item.find('img', class_='flex-unit-grid-img')
+            if img_tag and 'src' in img_tag.attrs:
+                img_url = img_tag['src']
+                self.download_and_resize_image(img_url, unit_code)
+            
             # Extract text block info
             text_block = item.find('div', class_='flex-unit-grid-text-block')
             if text_block:
-                # Look for the name (it's directly in flex-unit-grid-text)
                 name_div = text_block.find('div', class_='flex-unit-grid-text', recursive=False)
-                # Look for description (it has both classes)
                 desc_div = text_block.find('div', class_='flex-unit-grid-text unit-grid-text sub')
                 
                 name = name_div.text.strip() if name_div else ''
@@ -57,8 +95,8 @@ class UnitScraper:
                 
                 dynamic_value = self.get_dynamic_value(category, tech_level)
                 
-                print(f"Debug - Found unit: {name} - {description} - {tech_level}")  # Debug line
-                if name and description:  # Only return if we found both name and description
+                print(f"Debug - Found unit: {name} - {description} - {tech_level}")
+                if name and description:
                     return f"{name} - {description} - {tech_level}|/give {dynamic_value} {unit_code} 0"
         except Exception as e:
             print(f"Error extracting unit info: {str(e)}")
@@ -69,14 +107,12 @@ class UnitScraper:
             response = requests.get(url, headers=self.headers)
             response.raise_for_status()
             
-            print(f"Debug - Response status code: {response.status_code}")  # Debug line
+            print(f"Debug - Response status code: {response.status_code}")
             
             soup = BeautifulSoup(response.text, 'html.parser')
-            
-            # Find all items with the correct class
             items = soup.find_all('div', class_='flex-unit-grid-item')
             
-            print(f"Debug - Found {len(items)} items")  # Debug line
+            print(f"Debug - Found {len(items)} items")
             
             results = []
             for item in items:
@@ -112,7 +148,6 @@ def main():
     scraper.scrape_all()
     scraper.save_results()
     
-    # Print final debug summary
     print("\nFinal Results Summary:")
     for category, units in scraper.results.items():
         print(f"{category}: {len(units)} units")
