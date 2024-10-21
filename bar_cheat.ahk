@@ -155,8 +155,8 @@ ShowGui() {
     PasteBtn := gGui.Add("Button", "x10 y290 w190", "Paste Code (Enter)")
     CloseBtn := gGui.Add("Button", "x210 y290 w190", "Close (Esc)")
     
-    ; Add image viewer
-    ImageViewer := gGui.Add("Picture", "x10 y330 w400 h300")
+    ; Add image viewer with fixed size and centered
+    ImageViewer := gGui.Add("Picture", "x72 y330 w256 h256 +Center")
 
     ; Button handlers
     PasteBtn.OnEvent("Click", PasteSelectedCode)
@@ -300,6 +300,9 @@ UpdateCheatAmount(*) {
     } else {
         AmountBox.Value := ""
     }
+    
+    ; Clear the ImageViewer before loading a new image
+    ImageViewer.Value := ""
     
     ; Extract the unit name from the cheat code and load the image if it exists
     match := RegExMatch(cheatCode, "/give \d+ (\w+) \d+", &unitName)
