@@ -178,7 +178,7 @@ ShowGui() {
 }
 
 LoadImagesToImageList(ImageListID, imageDir) {
-    for file in Dir(imageDir "\*.png") {
+    for file in File.Dir(imageDir "\*.png") {
         IL_Add(ImageListID, file.FullPath)
     }
 }
