@@ -339,7 +339,14 @@ UpdateCheatAmount(*) {
 }
 
 IncrementAmount(*) {
-    global AmountBox, CheatCodeDisplay
+    global AmountBox, CheatCodeDisplay, TreeView
+    
+    ; Check if an item is selected and is a child node
+    selectedItemId := TreeView.GetSelection()
+    if !selectedItemId || !TreeView.GetParent(selectedItemId) {
+        ; MsgBox "Please select a valid cheat code."
+        return
+    }
     
     amount := AmountBox.Value
     if amount != ""
@@ -351,10 +358,17 @@ IncrementAmount(*) {
 }
 
 DecrementAmount(*) {
-    global AmountBox, CheatCodeDisplay
+    global AmountBox, CheatCodeDisplay, TreeView
+    
+    ; Check if an item is selected and is a child node
+    selectedItemId := TreeView.GetSelection()
+    if !selectedItemId || !TreeView.GetParent(selectedItemId) {
+        ; MsgBox "Please select a valid cheat code."
+        return
+    }
     
     amount := AmountBox.Value
-    if amount != "" && amount > 0
+    if amount != "" && amount > 1
         amount--
     AmountBox.Value := amount
     
@@ -365,10 +379,10 @@ DecrementAmount(*) {
 SetAmount(amount) {
     global AmountBox, CheatCodeDisplay, TreeView
     
-    ; Check if an item is selected
+    ; Check if an item is selected and is a child node
     selectedItemId := TreeView.GetSelection()
     if !selectedItemId || !TreeView.GetParent(selectedItemId) {
-        MsgBox "Please select a valid cheat code."
+        ; MsgBox "Please select a valid cheat code."
         return
     }
     
