@@ -354,7 +354,7 @@ DecrementAmount(*) {
     global AmountBox, CheatCodeDisplay
     
     amount := AmountBox.Value
-    if amount != ""
+    if amount != "" && amount > 0
         amount--
     AmountBox.Value := amount
     
@@ -363,7 +363,14 @@ DecrementAmount(*) {
 }
 
 SetAmount(amount) {
-    global AmountBox, CheatCodeDisplay
+    global AmountBox, CheatCodeDisplay, TreeView
+    
+    ; Check if an item is selected
+    selectedItemId := TreeView.GetSelection()
+    if !selectedItemId || !TreeView.GetParent(selectedItemId) {
+        MsgBox "Please select a valid cheat code."
+        return
+    }
     
     AmountBox.Value := amount
     
