@@ -1,5 +1,13 @@
 Recent
+Ferret - Pop-Up Anti-Air Missile Battery - Tech Level 1|/give 2 armferret 0
+Construction Turret - Assist & Repair in large radius - Tech Level 1|/give 1 armnanotc 0
+Sentry - Light Laser Tower - Tech Level 1|/give 5 armllt 0
+Sentry - Light Laser Tower - Tech Level 1|/give 2 armllt 0
+Flak|/give 5 armflak 0
+Radar Tower - Early Warning System - Tech Level 1|/give 1 armrad 0
+Fatboy - Heavy Plasma Bot - Tech Level 2|/give 5 armfboy 0
 Centurion - Anti-Swarm Bot - Tech Level 1|/give 10 armwar 0
+Centurion - Anti-Swarm Bot - Tech Level 1|/give 2 armwar 0
 Pawn - Fast Infantry Bot - Tech Level 1|/give 3 armpw 0
 Rocketeer - Rocket Bot - good vs. static defenses - Tech Level 1|/give 10 armrock 0
 Sentry - Light Laser Tower - Tech Level 1|/give 1 armllt 0
