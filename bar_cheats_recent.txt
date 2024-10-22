@@ -1,0 +1,9 @@
+Recent
+Ferret - Pop-Up Anti-Air Missile Battery - Tech Level 1|/give 1 armferret 0
+Sentry - Light Laser Tower - Tech Level 1|/give 1 armllt 0
+Mobile Tachyon Weapon|/give 2 armmanni 0
+Flak|/give 1 armflak 0
+Titan (Bantha)|/give 2 armbanth 0
+Construction Kbot|/give 10 armack 0
+Dragon's Teeth - Fortification - Tech Level 1|/give 1 armdrag 0
+Titan (Bantha)|/give 10 armbanth 0

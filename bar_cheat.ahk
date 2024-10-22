@@ -9,6 +9,8 @@ global mouseX := 0, mouseY := 0
 global AmountBox := ""
 global CheatCodesFile := A_ScriptDir "\bar_cheats.txt"
 global LastModified := ""
+global RecentCheatsFile := A_ScriptDir "\bar_cheats_recent.txt"
+global LastModifiedRecent := ""
 global TreeView := ""
 global TreeViewStateFile := A_ScriptDir "\bar_treeview_state.txt"
 global ImageViewer := ""
@@ -24,7 +26,7 @@ Escape::CloseGui()
 #HotIf
 
 LoadCheatCodes() {
-    global CheatCodesFile, LastModified
+    global CheatCodesFile, RecentCheatsFile, LastModified, LastModifiedRecent
     
     ; Create default file if it doesn't exist
     if !FileExist(CheatCodesFile) {
@@ -61,19 +63,64 @@ LoadCheatCodes() {
             No cost ON|/nocost
             No cost OFF|/nocost 0
         )"
-        ; Write the default cheats to the file
         FileAppend(defaultCheats, CheatCodesFile)
-        
-        ; Set LastModified to the current time
         LastModified := FileGetTime(CheatCodesFile)
     } else {
-        ; Update last modified time
         LastModified := FileGetTime(CheatCodesFile)
     }
 
-    ; Read and parse file
-    fileContent := FileRead(CheatCodesFile)
-    return ParseCheatFile(fileContent)
+    ; Create recent file if it doesn't exist
+    if !FileExist(RecentCheatsFile) {
+        FileAppend("Recent`n", RecentCheatsFile)
+        LastModifiedRecent := FileGetTime(RecentCheatsFile)
+    } else {
+        LastModifiedRecent := FileGetTime(RecentCheatsFile)
+    }
+
+    ; Read and parse both files
+    mainContent := FileRead(CheatCodesFile)
+    recentContent := FileRead(RecentCheatsFile)
+    
+    ; Merge the contents
+    mergedContent := recentContent "`n" mainContent
+    
+    return ParseCheatFile(mergedContent)
+}
+
+AddToRecent(cheatName, cheatCode) {
+    global RecentCheatsFile
+    
+    ; Read existing recents
+    recents := []
+    if FileExist(RecentCheatsFile) {
+        content := FileRead(RecentCheatsFile)
+        Loop Parse, content, "`n", "`r" {
+            line := Trim(A_LoopField)
+            if !line || line = "Recent"
+                continue
+            recents.Push(line)
+        }
+    }
+    
+    ; Remove existing entry if present
+    newRecents := []
+    newCheat := cheatName "|" cheatCode
+    for recent in recents {
+        if recent != newCheat
+            newRecents.Push(recent)
+    }
+    
+    ; Add new entry at the beginning
+    newRecents.InsertAt(1, newCheat)
+    
+    ; Write back to file
+    content := "Recent`n"
+    for recent in newRecents {
+        content .= recent "`n"
+    }
+    
+    FileDelete(RecentCheatsFile)
+    FileAppend(content, RecentCheatsFile)
 }
 
 ParseCheatFile(content) {
@@ -103,15 +150,18 @@ ParseCheatFile(content) {
 }
 
 ShowGui() {
-    global gGui, AmountBox, TreeView, LastModified, ImageViewer, CheatCodeDisplay
-    global mouseX, mouseY, CheatCodesFile, TreeViewStateFile
+    global gGui, AmountBox, TreeView, LastModified, LastModifiedRecent, ImageViewer, CheatCodeDisplay
+    global mouseX, mouseY, CheatCodesFile, RecentCheatsFile, TreeViewStateFile
   
-    ; Check if file has been modified
+    ; Check if either file has been modified
+    shouldReload := false
     if FileExist(CheatCodesFile) {
         currentModified := FileGetTime(CheatCodesFile)
         shouldReload := currentModified != LastModified
-    } else {
-        shouldReload := true
+    }
+    if FileExist(RecentCheatsFile) {
+        currentModifiedRecent := FileGetTime(RecentCheatsFile)
+        shouldReload := shouldReload || currentModifiedRecent != LastModifiedRecent
     }
     
     ; Capture current mouse position
@@ -448,6 +498,9 @@ PasteSelectedCode(*) {
         cheatCode := RegExReplace(cheatCode, " (\d+) ", " " amount " ")
     }
     
+    ; Add to recent cheats
+    AddToRecent(itemText, cheatCode)
+
     ; Store the game window title/class
     try {
         gameWin := WinGetTitle("A")  ; Get the title of the active window
