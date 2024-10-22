@@ -196,25 +196,6 @@ ShowGui() {
     ; Restore TreeView state
     RestoreTreeViewState(TreeView, TreeViewStateFile)
 
-    ; Find the "Recent" category node
-    recentNode := ""
-    node := TreeView.GetChild(0)
-    while node {
-        if (TreeView.GetText(node) = "Recent") {
-            recentNode := node
-            break
-        }
-        node := TreeView.GetNext(node)
-    }
-
-    if recentNode {
-        firstChild := TreeView.GetChild(recentNode)  ; Get first child of Recent category
-        if firstChild {
-            TreeView.Modify(firstChild, "Select")  ; Select the first child
-            TreeView.Modify(recentNode, "Expand")  ; Expand the Recent category
-        }
-    }
-
     ; Add text box and increment/decrement buttons for the cheat amount
     gGui.Add("Text", "x10 y250 w100", "Amount:")
     AmountBox := gGui.Add("Edit", "x120 y250 w50 vCheatAmount", "")
@@ -253,6 +234,34 @@ ShowGui() {
     ; Show and force activate the GUI
     gGui.Show()
     ForceActivateWindow(gGui)
+
+    ; Set a timer to delay the selection and event trigger
+    SetTimer(DelayedSelect, -100)    
+}
+
+DelayedSelect() {
+    global TreeView
+
+    ; Find the "Recent" category node
+    recentNode := ""
+    node := TreeView.GetChild(0)
+    while node {
+        if (TreeView.GetText(node) = "Recent") {
+            recentNode := node
+            break
+        }
+        node := TreeView.GetNext(node)
+    }
+
+    if recentNode {
+        firstChild := TreeView.GetChild(recentNode)  ; Get first child of Recent category
+        if firstChild {
+            TreeView.Modify(firstChild, "Select")  ; Select the first child
+            TreeView.Modify(recentNode, "Expand")  ; Expand the Recent category
+            ; Trigger the click event
+            UpdateCheatAmount(firstChild)
+        }
+    }
 }
 
 PopulateTreeView(TreeView, cheats) {
