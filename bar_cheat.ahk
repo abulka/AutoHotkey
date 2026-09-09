@@ -3,10 +3,14 @@
 ; Ensure single instance
 #SingleInstance Force
 
+; Match window titles by substring (needed for the title-based game fallback)
+SetTitleMatchMode(2)
+
 ; Global variables
 global gGui := ""
 global mouseX := 0, mouseY := 0
 global AmountBox := ""
+global SearchBox := ""
 global CheatCodesFile := A_ScriptDir "\bar_cheats.txt"
 global LastModified := ""
 global RecentCheatsFile := A_ScriptDir "\bar_cheats_recent.txt"
@@ -15,15 +19,44 @@ global TreeView := ""
 global TreeViewStateFile := A_ScriptDir "\bar_treeview_state.txt"
 global ImageViewer := ""
 global CheatCodeDisplay := ""
+global cheatsData := Map()
+global ConfigFile := A_ScriptDir "\bar_cheat.ini"
+global GameWinCriteria := ["ahk_exe spring.exe", "Beyond All Reason"]
 
-; Define the hotkey (Alt+C)
-!c::ShowGui()
+; Returns the hwnd of the game window, or 0 if not found.
+; Tries each criteria in GameWinCriteria in order.
+FindGameWindow() {
+    global GameWinCriteria
+    for criteria in GameWinCriteria {
+        hwnd := WinExist(criteria)
+        if hwnd
+            return hwnd
+    }
+    return 0
+}
 
 ; Define hotkeys for when GUI is active
 #HotIf WinActive("ahk_class AutoHotkeyGUI")
 Enter::PasteSelectedCode
 Escape::CloseGui()
 #HotIf
+
+; Set up the configurable hotkey (default Alt+C, see bar_cheat.ini)
+SetupHotkey()
+
+SetupHotkey() {
+    global ConfigFile
+    if !FileExist(ConfigFile)
+        IniWrite("!c", ConfigFile, "Settings", "Hotkey")
+    hk := IniRead(ConfigFile, "Settings", "Hotkey", "!c")
+    ; Hotkey callbacks must accept the hotkey name parameter, hence the closure
+    try {
+        Hotkey(hk, (*) => ShowGui())
+    } catch {
+        ; Fall back to the default if the ini contains an invalid hotkey
+        Hotkey("!c", (*) => ShowGui())
+    }
+}
 
 LoadCheatCodes() {
     global CheatCodesFile, RecentCheatsFile, LastModified, LastModifiedRecent
@@ -150,8 +183,8 @@ ParseCheatFile(content) {
 }
 
 ShowGui() {
-    global gGui, AmountBox, TreeView, LastModified, LastModifiedRecent, ImageViewer, CheatCodeDisplay
-    global mouseX, mouseY, CheatCodesFile, RecentCheatsFile, TreeViewStateFile
+    global gGui, AmountBox, SearchBox, TreeView, LastModified, LastModifiedRecent, ImageViewer, CheatCodeDisplay
+    global mouseX, mouseY, CheatCodesFile, RecentCheatsFile, TreeViewStateFile, cheatsData
   
     ; Check if either file has been modified
     shouldReload := false
@@ -183,40 +216,46 @@ ShowGui() {
     
     ; Add instructions
     gGui.Add("Text", "x10 y10 w400", "Select a cheat code and press Enter or click Paste:")
-    
+
+    ; Add search box (filters the tree as you type)
+    gGui.Add("Text", "x10 y32 w100", "Search:")
+    SearchBox := gGui.Add("Edit", "x120 y30 w290", "")
+    SearchBox.OnEvent("Change", FilterTreeView)
+
     ; Add TreeView
-    TreeView := gGui.Add("TreeView", "x10 y40 w400 h200 vSelectedCheat")
+    TreeView := gGui.Add("TreeView", "x10 y55 w400 h200 vSelectedCheat")
     TreeView.OnEvent("DoubleClick", PasteSelectedCode)
     TreeView.OnEvent("ItemSelect", UpdateCheatAmount)
-    
+
     ; Load cheats into TreeView
     cheats := LoadCheatCodes()
+    cheatsData := cheats
     PopulateTreeView(TreeView, cheats)
 
     ; Restore TreeView state
     RestoreTreeViewState(TreeView, TreeViewStateFile)
 
     ; Add text box and increment/decrement buttons for the cheat amount
-    gGui.Add("Text", "x10 y250 w100", "Amount:")
-    AmountBox := gGui.Add("Edit", "x120 y250 w50 vCheatAmount", "")
-    IncBtn := gGui.Add("Button", "x180 y250 w30", "+")
-    DecBtn := gGui.Add("Button", "x220 y250 w30", "-")
-    
+    gGui.Add("Text", "x10 y270 w100", "Amount:")
+    AmountBox := gGui.Add("Edit", "x120 y270 w50 vCheatAmount", "")
+    IncBtn := gGui.Add("Button", "x180 y270 w30", "+")
+    DecBtn := gGui.Add("Button", "x220 y270 w30", "-")
+
     ; Add buttons to set specific amounts
-    Btn1 := gGui.Add("Button", "x260 y250 w30", "1")
-    Btn2 := gGui.Add("Button", "x300 y250 w30", "2")
-    Btn5 := gGui.Add("Button", "x340 y250 w30", "5")
-    Btn10 := gGui.Add("Button", "x380 y250 w30", "10")
-    
+    Btn1 := gGui.Add("Button", "x260 y270 w30", "1")
+    Btn2 := gGui.Add("Button", "x300 y270 w30", "2")
+    Btn5 := gGui.Add("Button", "x340 y270 w30", "5")
+    Btn10 := gGui.Add("Button", "x380 y270 w30", "10")
+
     ; Add Paste and Close buttons
-    PasteBtn := gGui.Add("Button", "x10 y290 w190", "Paste Code (Enter)")
-    CloseBtn := gGui.Add("Button", "x210 y290 w190", "Close (Esc)")
-    
+    PasteBtn := gGui.Add("Button", "x10 y310 w190", "Paste Code (Enter)")
+    CloseBtn := gGui.Add("Button", "x210 y310 w190", "Close (Esc)")
+
     ; Add image viewer with fixed size and centered
-    ImageViewer := gGui.Add("Picture", "x72 y330 w256 h256 +Center")
-    
+    ImageViewer := gGui.Add("Picture", "x72 y350 w256 h256 +Center")
+
     ; Add cheat code display
-    CheatCodeDisplay := gGui.Add("Text", "x10 y600 w400", "")
+    CheatCodeDisplay := gGui.Add("Text", "x10 y620 w400", "")
 
     ; Button handlers
     PasteBtn.OnEvent("Click", PasteSelectedCode)
@@ -264,29 +303,74 @@ DelayedSelect() {
     }
 }
 
-PopulateTreeView(TreeView, cheats) {
+PopulateTreeView(TreeView, cheats, expand := false) {
     TreeView.Delete()
     itemMap := Map()  ; Store mapping of items to their command strings
-    
+
     for category, cheatList in cheats {
-        ; Add category
-        parentId := TreeView.Add(category, 0, "")
-        
+        ; Add category (optionally expanded, e.g. for filtered results)
+        parentId := TreeView.Add(category, 0, expand ? "Expand" : "")
+
         ; Verify that parentId is an integer
         if !IsInteger(parentId) {
             MsgBox "parentId is not an integer: " parentId
             Return
         }
-        
+
         ; Add cheats under category
         for cheat in cheatList {
             childId := TreeView.Add(cheat.name, parentId, 0)
             itemMap[childId] := cheat.code
         }
     }
-    
+
     ; Store the item map for later use
     TreeView.itemMap := itemMap
+}
+
+; Returns true if every space-separated token in searchText appears in name
+MatchSearch(name, searchText) {
+    for token in StrSplit(Trim(searchText), " ") {
+        if token != "" && !InStr(name, token)
+            return false
+    }
+    return true
+}
+
+FilterTreeView(*) {
+    global SearchBox, TreeView, cheatsData, TreeViewStateFile
+
+    searchText := SearchBox.Value
+    if Trim(searchText) = "" {
+        ; No search text: show everything and restore saved expand state
+        PopulateTreeView(TreeView, cheatsData)
+        RestoreTreeViewState(TreeView, TreeViewStateFile)
+        return
+    }
+
+    ; Build a filtered map of categories to matching cheats
+    filtered := Map()
+    for category, cheatList in cheatsData {
+        matched := []
+        for cheat in cheatList {
+            if MatchSearch(cheat.name, searchText)
+                matched.Push(cheat)
+        }
+        if matched.Length
+            filtered[category] := matched
+    }
+
+    PopulateTreeView(TreeView, filtered, true)
+
+    ; Select the first match so Enter pastes it right away
+    firstCategory := TreeView.GetChild(0)
+    if firstCategory {
+        firstMatch := TreeView.GetChild(firstCategory)
+        if firstMatch {
+            TreeView.Modify(firstMatch, "Select")
+            UpdateCheatAmount(firstMatch)
+        }
+    }
 }
 
 SaveTreeViewState(TreeView, filePath) {
@@ -485,34 +569,25 @@ PasteSelectedCode(*) {
     if InStr(cheatCode, "/give") && RegExMatch(cheatCode, " (\d+) ")
         cheatCode := ReplaceCheatAmount(cheatCode, AmountBox.Value)
     
+    ; Verify the game is running; only paste into Beyond All Reason
+    gameHwnd := FindGameWindow()
+    if !gameHwnd {
+        TrayTip("Beyond All Reason window not found - cheat not pasted.", "BAR Cheat")
+        CloseGui()
+        return
+    }
+
     ; Add to recent cheats
     AddToRecent(itemText, cheatCode)
 
-    ; Store the game window title/class
-    try {
-        gameWin := WinGetTitle("A")  ; Get the title of the active window
-    } catch {
-        gameWin := "A"  ; Fallback to just using the active window
-    }
-    
     ; Hide GUI
     gGui.Hide()
-    
+
     ; Wait a moment before trying to activate game window
     Sleep(200)
-    
-    ; Try different methods to activate the game window
-    try {
-        ; First try by stored title
-        if gameWin != "A"
-            WinActivate(gameWin)
-        
-        ; If that didn't work, try getting the last active window
-        if !WinActive(gameWin)
-            WinActivate("A")
-    } catch {
-        ; If all else fails, just try to send the keys to the active window
-    }
+
+    ; Activate the game window
+    WinActivate(gameHwnd)
     
     ; Additional delay to ensure window activation
     Sleep(300)
