@@ -359,139 +359,112 @@ FocusWindow(hwnd) {
     WinActivate("ahk_id " hwnd)
 }
 
-UpdateCheatAmount(*) {
-    global TreeView, AmountBox, ImageViewer, CheatCodeDisplay
-    
-    ; Get the selected item's ID number
+; Returns the cheat code of the selected child item, or "" if nothing
+; valid is selected (nothing selected, or a category node).
+GetSelectedCheatCode() {
+    global TreeView
     selectedItemId := TreeView.GetSelection()
-    
-    ; Check if an item is selected
-    if !selectedItemId {
-        AmountBox.Value := ""
-        ImageViewer.Value := ""
-        CheatCodeDisplay.Value := ""
-        return
-    }
-    
-    ; Check if the selected item is a child item (has a parent)
-    if !TreeView.GetParent(selectedItemId) {
-        AmountBox.Value := ""
-        ImageViewer.Value := ""
-        CheatCodeDisplay.Value := ""
-        return
-    }
-    
-    ; Get the item's text and associated cheat code
-    itemText := TreeView.GetText(selectedItemId)
-    itemMap := TreeView.itemMap
-    cheatCode := itemMap[selectedItemId]
-    
-    ; Extract the number from the cheat code if it starts with /give and has a number
-    if InStr(cheatCode, "/give") && RegExMatch(cheatCode, " (\d+) ") {
-        amount := RegExReplace(cheatCode, ".*? (\d+) .*", "$1")
-        ; Update the text box with the extracted amount
-        AmountBox.Value := amount
-    } else {
-        AmountBox.Value := ""
-    }
-    
-    ; Clear the ImageViewer before loading a new image
+    if !selectedItemId || !TreeView.GetParent(selectedItemId)
+        return ""
+    return TreeView.itemMap[selectedItemId]
+}
+
+; Extracts the default amount from a /give cheat code, or "" if none.
+ExtractCheatAmount(cheatCode) {
+    if !InStr(cheatCode, "/give") || !RegExMatch(cheatCode, " (\d+) ")
+        return ""
+    return RegExReplace(cheatCode, ".*? (\d+) .*", "$1")
+}
+
+; Substitutes a new amount into a /give cheat code.
+ReplaceCheatAmount(cheatCode, amount) {
+    if amount = ""
+        return cheatCode
+    return RegExReplace(cheatCode, " (\d+) ", " " amount " ")
+}
+
+ClearSelectionUI() {
+    global AmountBox, ImageViewer, CheatCodeDisplay
+    AmountBox.Value := ""
     ImageViewer.Value := ""
-    
-    ; Extract the unit name from the cheat code and load the image if it exists
-    match := RegExMatch(cheatCode, "/give \d+ (\w+) \d+", &unitName)
-    if match {
-        imageName := unitName[1] ".png"
-        imagePath := A_ScriptDir "\unit_images\" imageName
-        if FileExist(imagePath) {
-            ImageViewer.Value := imagePath
-        } else {
-            ImageViewer.Value := ""
-        }
-    } else {
-        ImageViewer.Value := ""
+    CheatCodeDisplay.Value := ""
+}
+
+UpdateCheatAmount(*) {
+    global AmountBox, ImageViewer, CheatCodeDisplay
+
+    cheatCode := GetSelectedCheatCode()
+    if !cheatCode {
+        ClearSelectionUI()
+        return
     }
-    
+
+    ; Update the text box with the extracted amount
+    AmountBox.Value := ExtractCheatAmount(cheatCode)
+
+    ; Load the unit image if it exists
+    ImageViewer.Value := ""
+    if RegExMatch(cheatCode, "/give \d+ (\w+) \d+", &unitName) {
+        imagePath := A_ScriptDir "\unit_images\" unitName[1] ".png"
+        if FileExist(imagePath)
+            ImageViewer.Value := imagePath
+    }
+
     ; Update the cheat code display
     CheatCodeDisplay.Value := cheatCode
 }
 
-IncrementAmount(*) {
-    global AmountBox, CheatCodeDisplay, TreeView
-    
-    ; Check if an item is selected and is a child node
-    selectedItemId := TreeView.GetSelection()
-    if !selectedItemId || !TreeView.GetParent(selectedItemId) {
-        ; MsgBox "Please select a valid cheat code."
+AdjustAmount(delta, min := 0) {
+    global AmountBox
+
+    if !GetSelectedCheatCode()
         return
-    }
-    
+
     amount := AmountBox.Value
-    if amount != ""
-        amount++
+    if amount != "" {
+        amount += delta
+        if amount < min
+            amount := min
+    }
     AmountBox.Value := amount
-    
+
     ; Update the cheat code display with the new amount
     UpdateCheatCodeDisplay()
+}
+
+IncrementAmount(*) {
+    AdjustAmount(1)
 }
 
 DecrementAmount(*) {
-    global AmountBox, CheatCodeDisplay, TreeView
-    
-    ; Check if an item is selected and is a child node
-    selectedItemId := TreeView.GetSelection()
-    if !selectedItemId || !TreeView.GetParent(selectedItemId) {
-        ; MsgBox "Please select a valid cheat code."
-        return
-    }
-    
-    amount := AmountBox.Value
-    if amount != "" && amount > 1
-        amount--
-    AmountBox.Value := amount
-    
-    ; Update the cheat code display with the new amount
-    UpdateCheatCodeDisplay()
+    AdjustAmount(-1, 1)
 }
 
 SetAmount(amount) {
-    global AmountBox, CheatCodeDisplay, TreeView
-    
-    ; Check if an item is selected and is a child node
-    selectedItemId := TreeView.GetSelection()
-    if !selectedItemId || !TreeView.GetParent(selectedItemId) {
-        ; MsgBox "Please select a valid cheat code."
+    global AmountBox
+
+    if !GetSelectedCheatCode()
         return
-    }
-    
+
     AmountBox.Value := amount
-    
+
     ; Update the cheat code display with the new amount
     UpdateCheatCodeDisplay()
 }
 
 UpdateCheatCodeDisplay() {
-    global TreeView, AmountBox, CheatCodeDisplay
-    
-    ; Get the selected item's ID number
-    selectedItemId := TreeView.GetSelection()
-    
-    ; Check if an item is selected
-    if !selectedItemId {
+    global AmountBox, CheatCodeDisplay
+
+    cheatCode := GetSelectedCheatCode()
+    if !cheatCode {
         CheatCodeDisplay.Value := ""
         return
     }
-    
-    ; Get the item's text and associated cheat code
-    itemMap := TreeView.itemMap
-    cheatCode := itemMap[selectedItemId]
-    
+
     ; Get the edited amount from the text box if the command is /give and has a number
-    if InStr(cheatCode, "/give") && RegExMatch(cheatCode, " (\d+) ") {
-        amount := AmountBox.Value
-        cheatCode := RegExReplace(cheatCode, " (\d+) ", " " amount " ")
-    }
-    
+    if InStr(cheatCode, "/give") && RegExMatch(cheatCode, " (\d+) ")
+        cheatCode := ReplaceCheatAmount(cheatCode, AmountBox.Value)
+
     ; Update the cheat code display
     CheatCodeDisplay.Value := cheatCode
 }
@@ -502,29 +475,15 @@ PasteSelectedCode(*) {
     ; Save TreeView state before hiding the GUI
     SaveTreeViewState(TreeView, TreeViewStateFile)
     
-    ; Get the selected item's ID number
-    selectedItemId := TreeView.GetSelection()
-    
-    ; Check if an item is selected
-    if !selectedItemId {
+    ; Get the selected item's text and cheat code ("" if nothing valid is selected)
+    cheatCode := GetSelectedCheatCode()
+    if !cheatCode
         return
-    }
-    
-    ; Check if the selected item is a child item (has a parent)
-    if !TreeView.GetParent(selectedItemId) {
-        return
-    }
-    
-    ; Get the item's text and associated cheat code
-    itemText := TreeView.GetText(selectedItemId)
-    itemMap := TreeView.itemMap
-    cheatCode := itemMap[selectedItemId]
-    
+    itemText := TreeView.GetText(TreeView.GetSelection())
+
     ; Get the edited amount from the text box if the command is /give and has a number
-    if InStr(cheatCode, "/give") && RegExMatch(cheatCode, " (\d+) ") {
-        amount := AmountBox.Value
-        cheatCode := RegExReplace(cheatCode, " (\d+) ", " " amount " ")
-    }
+    if InStr(cheatCode, "/give") && RegExMatch(cheatCode, " (\d+) ")
+        cheatCode := ReplaceCheatAmount(cheatCode, AmountBox.Value)
     
     ; Add to recent cheats
     AddToRecent(itemText, cheatCode)
@@ -562,12 +521,9 @@ PasteSelectedCode(*) {
     SendInput("{Enter}")
     Sleep(50)
 
-    ; Send each character with a delay
-    ; MsgBox cheatCode
-    for char in StrSplit(cheatCode) {
-        SendInput(char)
-        Sleep(60)
-    }
+    ; Send the cheat code in one shot
+    SendText(cheatCode)
+    Sleep(50)
     
     ; Restore mouse position after delay
     Sleep(300)
