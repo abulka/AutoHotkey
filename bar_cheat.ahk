@@ -11,17 +11,39 @@ global gGui := ""
 global mouseX := 0, mouseY := 0
 global AmountBox := ""
 global SearchBox := ""
+global TabCtrl := ""
+global FavList := ""
+global FavSearchBox := ""
+global FavBtn := ""
+global RecentList := ""
+global RecentSearchBox := ""
+global MetaList := ""
+global AmountGroup := ""
+global HKBox := ""
+global gStatus := ""
 global CheatCodesFile := A_ScriptDir "\bar_cheats.txt"
 global LastModified := ""
 global RecentCheatsFile := A_ScriptDir "\bar_cheats_recent.txt"
 global LastModifiedRecent := ""
+global FavoritesFile := A_ScriptDir "\bar_cheats_favorites.txt"
 global TreeView := ""
 global TreeViewStateFile := A_ScriptDir "\bar_treeview_state.txt"
 global ImageViewer := ""
-global CheatCodeDisplay := ""
+global RecentImg := ""
+global FavImg := ""
+global ImgToggleBtn := ""
 global cheatsData := Map()
+global unitsData := Map()
+global favData := []
+global favDisplay := []
+global favCheatData := []
+global favNameSet := Map()
+global metaListData := []
+global recentData := []
+global recentDisplay := []
 global ConfigFile := A_ScriptDir "\bar_cheat.ini"
 global GameWinCriteria := ["ahk_exe spring.exe", "Beyond All Reason"]
+global CurrentHotkey := ""
 
 ; Returns the hwnd of the game window, or 0 if not found.
 ; Tries each criteria in GameWinCriteria in order.
@@ -35,6 +57,17 @@ FindGameWindow() {
     return 0
 }
 
+; Settings helpers (stored in bar_cheat.ini)
+GetSetting(name, default) {
+    global ConfigFile
+    return IniRead(ConfigFile, "Settings", name, default)
+}
+
+SetSetting(name, value) {
+    global ConfigFile
+    IniWrite(value, ConfigFile, "Settings", name)
+}
+
 ; Define hotkeys for when GUI is active
 #HotIf WinActive("ahk_class AutoHotkeyGUI")
 Enter::PasteSelectedCode
@@ -44,23 +77,41 @@ Escape::CloseGui()
 ; Set up the configurable hotkey (default Alt+C, see bar_cheat.ini)
 SetupHotkey()
 
+; Registers the show-window hotkey, disabling the previous one.
+; Returns true on success. Hotkey callbacks must accept the hotkey
+; name parameter, hence the closure.
+RegisterHotkey(hk) {
+    global CurrentHotkey
+    ; Reject empty names and bare modifier prefixes (e.g. "!", "^", "+") -
+    ; AHK accepts them but they never trigger
+    if hk = "" || RegExMatch(hk, "[#!^+*&~$<>]$")
+        return false
+    try {
+        Hotkey(hk, (*) => ShowGui())
+    } catch {
+        return false
+    }
+    if CurrentHotkey != "" && CurrentHotkey != hk
+        try Hotkey(CurrentHotkey, , "Off")
+    CurrentHotkey := hk
+    return true
+}
+
 SetupHotkey() {
     global ConfigFile
     if !FileExist(ConfigFile)
         IniWrite("!c", ConfigFile, "Settings", "Hotkey")
     hk := IniRead(ConfigFile, "Settings", "Hotkey", "!c")
-    ; Hotkey callbacks must accept the hotkey name parameter, hence the closure
-    try {
-        Hotkey(hk, (*) => ShowGui())
-    } catch {
-        ; Fall back to the default if the ini contains an invalid hotkey
-        Hotkey("!c", (*) => ShowGui())
+    if !RegisterHotkey(hk) {
+        ; Configured hotkey is invalid - fall back to Alt+C and repair the ini
+        RegisterHotkey("!c")
+        IniWrite("!c", ConfigFile, "Settings", "Hotkey")
     }
 }
 
 LoadCheatCodes() {
     global CheatCodesFile, RecentCheatsFile, LastModified, LastModifiedRecent
-    
+
     ; Create default file if it doesn't exist
     if !FileExist(CheatCodesFile) {
         defaultCheats := "
@@ -110,68 +161,70 @@ LoadCheatCodes() {
         LastModifiedRecent := FileGetTime(RecentCheatsFile)
     }
 
-    ; Read and parse both files
-    mainContent := FileRead(CheatCodesFile)
-    recentContent := FileRead(RecentCheatsFile)
-    
-    ; Merge the contents
-    mergedContent := recentContent "`n" mainContent
-    
-    return ParseCheatFile(mergedContent)
+    ; Parse the main file; categories are split per tab in ShowGui
+    return ParseCheatFile(FileRead(CheatCodesFile))
 }
 
 AddToRecent(cheatName, cheatCode) {
+    recents := LoadRecents()
+
+    ; Remove older invocations of the same cheat (name only - the newest wins)
+    newRecents := []
+    for r in recents {
+        if r.name != cheatName
+            newRecents.Push(r)
+    }
+    newRecents.InsertAt(1, {name: cheatName, code: cheatCode})
+    SaveRecents(newRecents)
+}
+
+LoadRecents() {
     global RecentCheatsFile
-    
-    ; Read existing recents
     recents := []
+    seen := Map()
     if FileExist(RecentCheatsFile) {
         content := FileRead(RecentCheatsFile)
         Loop Parse, content, "`n", "`r" {
             line := Trim(A_LoopField)
             if !line || line = "Recent"
                 continue
-            recents.Push(line)
+            parts := StrSplit(line, "|", , 2)
+            ; Deduplicate by name (amount differences don't count)
+            if parts.Length = 2 && !seen.Has(parts[1]) {
+                seen[parts[1]] := true
+                recents.Push({name: parts[1], code: parts[2]})
+            }
         }
     }
-    
-    ; Remove existing entry if present
-    newRecents := []
-    newCheat := cheatName "|" cheatCode
-    for recent in recents {
-        if recent != newCheat
-            newRecents.Push(recent)
-    }
-    
-    ; Add new entry at the beginning
-    newRecents.InsertAt(1, newCheat)
-    
-    ; Write back to file
+    return recents
+}
+
+SaveRecents(recents) {
+    global RecentCheatsFile
     content := "Recent`n"
-    for recent in newRecents {
-        content .= recent "`n"
-    }
-    
-    FileDelete(RecentCheatsFile)
+    for r in recents
+        content .= r.name "|" r.code "`n"
+    if FileExist(RecentCheatsFile)
+        FileDelete(RecentCheatsFile)
     FileAppend(content, RecentCheatsFile)
 }
 
 ParseCheatFile(content) {
     cheats := Map()
     currentCategory := "Uncategorized"
-    
+
     Loop Parse, content, "`n", "`r" {
         line := Trim(A_LoopField)
         if !line
             continue
-            
+
         ; Check if line is a category (no pipe character and not indented)
         if !InStr(line, "|") && SubStr(line, 1, 4) != "    " {
             currentCategory := line
             cheats[currentCategory] := []
             continue
         }
-        
+
         ; If it's a cheat entry (contains pipe character)
         if InStr(line, "|") {
             cheatParts := StrSplit(Trim(line), "|")
@@ -182,10 +235,45 @@ ParseCheatFile(content) {
     return cheats
 }
 
+LoadFavorites() {
+    global FavoritesFile
+    favs := []
+    seen := Map()
+    if FileExist(FavoritesFile) {
+        content := FileRead(FavoritesFile)
+        Loop Parse, content, "`n", "`r" {
+            line := Trim(A_LoopField)
+            if !line || line = "Favorites"
+                continue
+            parts := StrSplit(line, "|", , 2)
+            ; Deduplicate by name (amount differences don't count)
+            if parts.Length = 2 && !seen.Has(parts[1]) {
+                seen[parts[1]] := true
+                favs.Push({name: parts[1], code: parts[2]})
+            }
+        }
+    }
+    return favs
+}
+
+SaveFavorites(favs) {
+    global FavoritesFile
+    content := "Favorites`n"
+    for fav in favs
+        content .= fav.name "|" fav.code "`n"
+    if FileExist(FavoritesFile)
+        FileDelete(FavoritesFile)
+    FileAppend(content, FavoritesFile)
+}
+
 ShowGui() {
-    global gGui, AmountBox, SearchBox, TreeView, LastModified, LastModifiedRecent, ImageViewer, CheatCodeDisplay
-    global mouseX, mouseY, CheatCodesFile, RecentCheatsFile, TreeViewStateFile, cheatsData
-  
+    global gGui, AmountBox, SearchBox, TabCtrl, FavList, FavSearchBox, RecentList, RecentSearchBox, MetaList, AmountGroup, FavBtn, HKBox, gStatus
+    global TreeView, ImageViewer, RecentImg, FavImg, ImgToggleBtn
+    global IncBtn, DecBtn, Btn1, Btn2, Btn5, Btn10, PasteBtn, CloseBtn, RemoveFavBtn, RemoveRecentBtn
+    global chkTopmost, chkRememberPos, chkDark
+    global mouseX, mouseY, CheatCodesFile, RecentCheatsFile, TreeViewStateFile
+    global cheatsData, unitsData, favData, recentData, favDisplay, favCheatData
+
     ; Check if either file has been modified
     shouldReload := false
     if FileExist(CheatCodesFile) {
@@ -196,7 +284,7 @@ ShowGui() {
         currentModifiedRecent := FileGetTime(RecentCheatsFile)
         shouldReload := shouldReload || currentModifiedRecent != LastModifiedRecent
     }
-    
+
     ; Capture current mouse position
     CoordMode("Mouse", "Screen")
     MouseGetPos(&mouseX, &mouseY)
@@ -208,56 +296,176 @@ ShowGui() {
             return
         }
     }
-    
-    ; Create new GUI with increased width
-    gGui := Gui("+AlwaysOnTop +Owner")
-    gGui.Title := "Total Annihilation Cheat Codes"
-    gGui.SetFont("s10")
-    
-    ; Add instructions
-    gGui.Add("Text", "x10 y10 w400", "Select a cheat code and press Enter or click Paste:")
 
-    ; Add search box (filters the tree as you type)
-    gGui.Add("Text", "x10 y32 w100", "Search:")
-    SearchBox := gGui.Add("Edit", "x120 y30 w290", "")
+    ; Save the old GUI's state before rebuilding it
+    if IsObject(gGui) {
+        try {
+            SaveTreeViewState(TreeView, TreeViewStateFile, true)
+            if IsObject(TabCtrl)
+                SetSetting("LastTab", TabCtrl.Value)
+        }
+    }
+
+    dark := GetSetting("DarkMode", 0)
+    topmost := GetSetting("AlwaysOnTop", 1)
+
+    ; Create new GUI
+    gGui := Gui(topmost ? "+AlwaysOnTop +Owner" : "+Owner")
+    gGui.Title := "BAR Cheat Codes"
+    gGui.SetFont("s10" (dark ? " cE0E0E0" : " c000000"))
+    if dark
+        gGui.BackColor := "202020"
+
+; Creation-time options for dark mode (Theme/-Theme only works at creation,
+    ; so dark styling is baked in here rather than applied later)
+    btnOpt := dark ? "-Theme" : ""
+    lstOpt := dark ? "Background2D2D2D" : ""
+    txtOpt := dark ? "Background1A1A1A" : ""
+    gbOpt := dark ? "-Theme" : ""
+
+    ; Tab area holds only the lists; Amount/buttons are shared below it
+    TabCtrl := gGui.Add("Tab3", "x8 y6 w408 h560", ["Units", "Recent", "Favorites", "Meta", "Settings"])
+    TabCtrl.OnEvent("Change", TabChanged)
+
+    ; ---- Units tab (UseTab makes coords relative to the tab page) ----
+    TabCtrl.UseTab(1)
+    gGui.Add("Text", "x16 y34 w60", "Search:")
+    SearchBox := gGui.Add("Edit", "x78 y32 w322 " lstOpt, "")
     SearchBox.OnEvent("Change", FilterTreeView)
 
-    ; Add TreeView
-    TreeView := gGui.Add("TreeView", "x10 y55 w400 h200 vSelectedCheat")
+    TreeView := gGui.Add("TreeView", "x16 y56 w384 h204")
     TreeView.OnEvent("DoubleClick", PasteSelectedCode)
     TreeView.OnEvent("ItemSelect", UpdateCheatAmount)
 
-    ; Load cheats into TreeView
-    cheats := LoadCheatCodes()
-    cheatsData := cheats
-    PopulateTreeView(TreeView, cheats)
+    ; Image viewer with fixed size and centered (256x256 native)
+    ImageViewer := gGui.Add("Picture", "x80 y268 w256 h256 +Center")
 
-    ; Restore TreeView state
+    ; ---- Recent tab ----
+    TabCtrl.UseTab(2)
+    gGui.Add("Text", "x16 y34 w60", "Search:")
+    RecentSearchBox := gGui.Add("Edit", "x78 y32 w322 " lstOpt, "")
+    RecentSearchBox.OnEvent("Change", FilterRecentList)
+    RecentList := gGui.Add("ListBox", "x16 y56 w384 h204 " lstOpt)
+    RecentList.OnEvent("DoubleClick", PasteSelectedCode)
+    RecentList.OnEvent("Change", ListSelectionChanged)
+    RecentImg := gGui.Add("Picture", "x80 y268 w256 h256 +Center")
+    RemoveRecentBtn := gGui.Add("Button", "x16 y532 w384 " btnOpt, "Remove Selected from Recent")
+
+    ; ---- Favorites tab ----
+    TabCtrl.UseTab(3)
+    gGui.Add("Text", "x16 y34 w60", "Search:")
+    FavSearchBox := gGui.Add("Edit", "x78 y32 w322 " lstOpt, "")
+    FavSearchBox.OnEvent("Change", FilterFavList)
+    FavList := gGui.Add("ListBox", "x16 y56 w384 h204 " lstOpt)
+    FavList.OnEvent("DoubleClick", PasteSelectedCode)
+    FavList.OnEvent("Change", ListSelectionChanged)
+    FavImg := gGui.Add("Picture", "x80 y268 w256 h256 +Center")
+    RemoveFavBtn := gGui.Add("Button", "x16 y532 w384 " btnOpt, "Remove Selected from Favorites")
+
+    ; ---- Meta tab ----
+    TabCtrl.UseTab(4)
+    MetaList := gGui.Add("ListBox", "x16 y34 w384 h496 " lstOpt)
+    MetaList.OnEvent("DoubleClick", PasteSelectedCode)
+    MetaList.OnEvent("Change", ListSelectionChanged)
+
+    ; ---- Settings tab ----
+    TabCtrl.UseTab(5)
+    gGui.Add("Text", "x16 y32 w384", "Hotkey to show the cheat window:")
+    HKBox := gGui.Add("Hotkey", "x16 y52 w150")
+    if CurrentHotkey != ""
+        HKBox.Value := CurrentHotkey
+    HKBox.OnEvent("Change", ApplyHotkeySetting)
+
+    chkTopmost := gGui.Add("CheckBox", "x16 y84 w384", "Always on top")
+    chkTopmost.Value := topmost
+    chkTopmost.OnEvent("Click", ApplyTopmostSetting)
+
+    chkRememberPos := gGui.Add("CheckBox", "x16 y108 w384", "Remember window position")
+    chkRememberPos.Value := GetSetting("RememberPos", 0)
+    chkRememberPos.OnEvent("Click", ApplyRememberPosSetting)
+
+    chkDark := gGui.Add("CheckBox", "x16 y132 w384", "Dark mode (reopens the window)")
+    chkDark.Value := dark
+    chkDark.OnEvent("Click", ApplyDarkModeSetting)
+
+    gGui.Add("Text", "x16 y156 w384", "Settings are saved to bar_cheat.ini in the script folder.")
+
+    ; Stop associating controls with the tab pages
+    TabCtrl.UseTab()
+
+    ; ---- Shared Amount area (used by Units, Recent, Favorites and Meta) ----
+    ; The caption is a separate Text control so dark mode can color it
+    ; (groupbox captions ignore font colors)
+    AmountGroup := gGui.Add("GroupBox", "x16 y576 w384 h56 " gbOpt, "")
+    gGui.Add("Text", "x24 y572 w60 " (dark ? "Background202020" : ""), "Amount")
+    AmountBox := gGui.Add("Edit", "x26 y598 w50 " lstOpt, "")
+    IncBtn := gGui.Add("Button", "x88 y598 w30 " btnOpt, "+")
+    DecBtn := gGui.Add("Button", "x120 y598 w30 " btnOpt, "-")
+    Btn1 := gGui.Add("Button", "x160 y598 w30 " btnOpt, "1")
+    Btn2 := gGui.Add("Button", "x192 y598 w30 " btnOpt, "2")
+    Btn5 := gGui.Add("Button", "x224 y598 w30 " btnOpt, "5")
+    Btn10 := gGui.Add("Button", "x256 y598 w36 " btnOpt, "10")
+    ImgToggleBtn := gGui.Add("Button", "x300 y598 w84 " btnOpt, "Hide Img")
+    ImgToggleBtn.OnEvent("Click", ToggleImagePreview)
+
+    ; Paste is the default button, placed first for prominence.
+    ; In dark mode it loses the default glow (Enter still works via hotkey).
+    PasteBtn := gGui.Add("Button", "x16 y640 w186 " (dark ? "" : "+Default "), "Paste Code (Enter)")
+    PasteBtn.SetFont("w600")
+    FavBtn := gGui.Add("Button", "x210 y640 w96 " btnOpt, "★ Favorite")
+    CloseBtn := gGui.Add("Button", "x314 y640 w86 " btnOpt, "Close (Esc)")
+
+    ; Dark mode: classic (-Theme) buttons need dark text on the gray face
+    if dark {
+        for ctrl in [IncBtn, DecBtn, Btn1, Btn2, Btn5, Btn10, PasteBtn, FavBtn, CloseBtn,
+                     RemoveFavBtn, RemoveRecentBtn, ImgToggleBtn]
+            try ctrl.SetFont(ctrl = PasteBtn ? "w600 c000000" : "c000000")
+    }
+
+    ; Restore the last used tab
+    lastTab := GetSetting("LastTab", 1)
+    if lastTab >= 1 && lastTab <= 5
+        TabCtrl.Value := lastTab
+
+    ; Load favorites first so trees/lists can mark favorites with a star
+    favData := LoadFavorites()
+    RebuildFavoriteNames()
+
+    ; Split the parsed categories into per-tab datasets:
+    ; "Fav *" categories -> favorites, "Cheat" -> meta list, rest -> units tree
+    cheatsData := Map(), unitsData := Map(), favCheatData := []
+    for category, cheatList in LoadCheatCodes() {
+        if InStr(category, "Fav") = 1 {
+            for cheat in cheatList
+                favCheatData.Push({name: cheat.name, code: cheat.code})
+        } else if InStr(category, "Cheat") {
+            cheatsData[category] := cheatList
+        } else {
+            unitsData[category] := cheatList
+        }
+    }
+    RebuildFavoriteNames()
+    PopulateTreeView(TreeView, unitsData)
     RestoreTreeViewState(TreeView, TreeViewStateFile)
 
-    ; Add text box and increment/decrement buttons for the cheat amount
-    gGui.Add("Text", "x10 y270 w100", "Amount:")
-    AmountBox := gGui.Add("Edit", "x120 y270 w50 vCheatAmount", "")
-    IncBtn := gGui.Add("Button", "x180 y270 w30", "+")
-    DecBtn := gGui.Add("Button", "x220 y270 w30", "-")
+    ; Populate the lists
+    recentData := LoadRecents()
+    RefreshRecentList()
+    RefreshFavList()
+    RefreshMetaList()
 
-    ; Add buttons to set specific amounts
-    Btn1 := gGui.Add("Button", "x260 y270 w30", "1")
-    Btn2 := gGui.Add("Button", "x300 y270 w30", "2")
-    Btn5 := gGui.Add("Button", "x340 y270 w30", "5")
-    Btn10 := gGui.Add("Button", "x380 y270 w30", "10")
+; Enable/disable the shared Amount area for the restored tab
+    UpdateAmountArea()
 
-    ; Add Paste and Close buttons
-    PasteBtn := gGui.Add("Button", "x10 y310 w190", "Paste Code (Enter)")
-    CloseBtn := gGui.Add("Button", "x210 y310 w190", "Close (Esc)")
+    ; Apply the persisted image preview state (collapsed/expanded)
+    ApplyImageState()
 
-    ; Add image viewer with fixed size and centered
-    ImageViewer := gGui.Add("Picture", "x72 y350 w256 h256 +Center")
+    ; Apply dark styling to list-like controls
+    if dark
+        ApplyDarkControls()
 
-    ; Add cheat code display
-    CheatCodeDisplay := gGui.Add("Text", "x10 y620 w400", "")
-
-    ; Button handlers
+    ; Event handlers
+    FavBtn.OnEvent("Click", ToggleFavorite)
     PasteBtn.OnEvent("Click", PasteSelectedCode)
     CloseBtn.OnEvent("Click", CloseGui)
     IncBtn.OnEvent("Click", IncrementAmount)
@@ -266,41 +474,160 @@ ShowGui() {
     Btn2.OnEvent("Click", (*) => SetAmount(2))
     Btn5.OnEvent("Click", (*) => SetAmount(5))
     Btn10.OnEvent("Click", (*) => SetAmount(10))
-    
+    RemoveFavBtn.OnEvent("Click", RemoveFavorite)
+    RemoveRecentBtn.OnEvent("Click", RemoveRecent)
+
+    ; Status line shows the selected cheat code and hints (a text control
+    ; instead of a real status bar so dark mode can style it)
+    statusHints := "Select a cheat - Enter=Paste, Esc=Close"
+    gStatus := gGui.Add("Text", "x8 y674 w408 h24 +Border +0x200 " txtOpt, statusHints)
+
     ; Handle GUI close event
     gGui.OnEvent("Close", CloseGui)
-    
-    ; Show and force activate the GUI
-    gGui.Show()
+
+    ; Show the window, restoring the saved position if enabled
+    showOpts := "w424 h704"
+    if GetSetting("RememberPos", 0) {
+        px := IniRead(ConfigFile, "WindowPos", "X", "")
+        py := IniRead(ConfigFile, "WindowPos", "Y", "")
+        if px != "" && py != "" {
+            px := Min(Max(px + 0, -200), A_ScreenWidth - 100)
+            py := Min(Max(py + 0, 0), A_ScreenHeight - 100)
+            showOpts .= " x" px " y" py
+        }
+    }
+gGui.Show(showOpts)
+    if dark {
+        ; Dark title bar (Windows 10 2004+)
+        try DllCall("dwmapi\DwmSetWindowAttribute", "ptr", gGui.Hwnd, "uint", 20, "int*", 1, "uint", 4)
+    }
     ForceActivateWindow(gGui)
 
     ; Set a timer to delay the selection and event trigger
-    SetTimer(DelayedSelect, -100)    
+    SetTimer(DelayedSelect, -100)
+}
+
+; Dark-mode extras that can only be applied at runtime (most styling is
+; baked in at control creation in ShowGui).
+; Palette: window #202020, lists/edits #2D2D2D, classic gray buttons with
+; black text (-Theme), status line #1A1A1A, text #E0E0E0.
+ApplyDarkControls() {
+    global TreeView, TabCtrl, chkTopmost, chkRememberPos, chkDark, HKBox
+
+    ; Checkboxes and hotkey box: dark glyph (Win10 1809+)
+    for ctrl in [chkTopmost, chkRememberPos, chkDark, HKBox]
+        try DllCall("uxtheme\SetWindowTheme", "ptr", ctrl.Hwnd, "str", "DarkMode_Explorer", "ptr", 0)
+
+    ; Tab header: dark mode theme (Win10 1809+)
+    try DllCall("uxtheme\SetWindowTheme", "ptr", TabCtrl.Hwnd, "str", "DarkMode_Elements", "ptr", 0)
+
+    ; TreeView: dark colors + dark scrollbars
+    DllCall("uxtheme\SetWindowTheme", "ptr", TreeView.Hwnd, "str", "DarkMode_Explorer", "ptr", 0)
+    SendMessage(0x111E, 0, 0xE0E0E0, TreeView)  ; TVM_SETTEXTCOLOR
+    SendMessage(0x111D, 0, 0x202020, TreeView)  ; TVM_SETBKCOLOR
+    TreeView.Redraw()
+}
+
+; Collapses/expands the image preview on the Units, Recent and Favorites
+; tabs; the lists grow/shrink to use the freed space. Persisted in the ini.
+ApplyImageState() {
+    global ImgToggleBtn, ImageViewer, RecentImg, FavImg, TreeView, RecentList, FavList
+    show := GetSetting("ImagePreview", 1) = "1"
+    if IsObject(ImgToggleBtn)
+        ImgToggleBtn.Text := show ? "Hide Img" : "Show Img"
+    if !IsObject(TreeView)
+        return
+    listH := show ? 204 : 474
+    for ctrl in [TreeView, RecentList, FavList]
+        try ctrl.Move(, , , listH)
+    for ctrl in [ImageViewer, RecentImg, FavImg]
+        ctrl.Visible := show ? true : false
+}
+
+ToggleImagePreview(*) {
+    SetSetting("ImagePreview", GetSetting("ImagePreview", 1) = "1" ? 0 : 1)
+    ApplyImageState()
+}
+
+; Loads the unit preview image for a cheat code into the given Picture
+; control. The images are 256x256 and the preview boxes are 256x256, so
+; they display 1:1 without scaling.
+LoadUnitImage(pic, cheatCode) {
+    if !IsObject(pic)
+        return
+    pic.Value := ""
+    if !RegExMatch(cheatCode, "/give \d+ (\w+) \d+", &unitName)
+        return
+    imagePath := A_ScriptDir "\unit_images\" unitName[1] ".png"
+    if !FileExist(imagePath)
+        return
+    pic.Value := imagePath
+}
+
+; Settings tab handlers
+ApplyHotkeySetting(*) {
+    global HKBox, CurrentHotkey
+    hk := HKBox.Value
+    if hk = "" || hk = CurrentHotkey
+        return
+    if RegisterHotkey(hk) {
+        SetSetting("Hotkey", hk)
+    } else {
+        HKBox.Value := CurrentHotkey
+    }
+}
+
+ApplyTopmostSetting(ctrl, *) {
+    global gGui
+    SetSetting("AlwaysOnTop", ctrl.Value ? 1 : 0)
+    if IsObject(gGui)
+        gGui.Opt(ctrl.Value ? "+AlwaysOnTop" : "-AlwaysOnTop")
+}
+
+ApplyRememberPosSetting(ctrl, *) {
+    SetSetting("RememberPos", ctrl.Value ? 1 : 0)
+}
+
+ApplyDarkModeSetting(ctrl, *) {
+    SetSetting("DarkMode", ctrl.Value ? 1 : 0)
+    ; Rebuild the GUI so every control picks up the new colors
+    SetTimer(RebuildGui, -10)
+}
+
+RebuildGui() {
+    CloseGui()
+    ShowGui()
 }
 
 DelayedSelect() {
     global TreeView
 
-    ; Find the "Recent" category node
-    recentNode := ""
-    node := TreeView.GetChild(0)
-    while node {
-        if (TreeView.GetText(node) = "Recent") {
-            recentNode := node
-            break
-        }
-        node := TreeView.GetNext(node)
-    }
-
-    if recentNode {
-        firstChild := TreeView.GetChild(recentNode)  ; Get first child of Recent category
+    ; Only pick a default selection if the state restore didn't provide one
+    if TreeView.GetSelection()
+        return
+    firstCategory := TreeView.GetChild(0)
+    if firstCategory {
+        firstChild := TreeView.GetChild(firstCategory)
         if firstChild {
-            TreeView.Modify(firstChild, "Select")  ; Select the first child
-            TreeView.Modify(recentNode, "Expand")  ; Expand the Recent category
-            ; Trigger the click event
-            UpdateCheatAmount(firstChild)
+            TreeView.Modify(firstCategory, "Expand")
+            TreeView.Modify(firstChild, "Select")
         }
     }
+}
+
+; Enables/disables the shared Amount area: dimmed on the Meta and Settings
+; tabs (only Close works there).
+TabChanged(*) {
+    UpdateAmountArea()
+    if IsObject(gStatus)
+        UpdateStatusBar(GetDisplayedCheatCode())
+}
+
+UpdateAmountArea() {
+    global TabCtrl, AmountBox, IncBtn, DecBtn, Btn1, Btn2, Btn5, Btn10, PasteBtn, FavBtn
+    dim := IsObject(TabCtrl) && TabCtrl.Value >= 4
+    for ctrl in [AmountBox, IncBtn, DecBtn, Btn1, Btn2, Btn5, Btn10, PasteBtn, FavBtn]
+        ctrl.Enabled := !dim
 }
 
 PopulateTreeView(TreeView, cheats, expand := false) {
@@ -317,9 +644,9 @@ PopulateTreeView(TreeView, cheats, expand := false) {
             Return
         }
 
-        ; Add cheats under category
+        ; Add cheats under category, marking favorites with a star
         for cheat in cheatList {
-            childId := TreeView.Add(cheat.name, parentId, 0)
+            childId := TreeView.Add(FavMark(cheat.name), parentId, 0)
             itemMap[childId] := cheat.code
         }
     }
@@ -338,56 +665,69 @@ MatchSearch(name, searchText) {
 }
 
 FilterTreeView(*) {
-    global SearchBox, TreeView, cheatsData, TreeViewStateFile
+    global SearchBox, TreeView, unitsData, TreeViewStateFile, FavBtn
 
     searchText := SearchBox.Value
     if Trim(searchText) = "" {
         ; No search text: show everything and restore saved expand state
-        PopulateTreeView(TreeView, cheatsData)
+        PopulateTreeView(TreeView, unitsData)
         RestoreTreeViewState(TreeView, TreeViewStateFile)
-        return
-    }
-
-    ; Build a filtered map of categories to matching cheats
-    filtered := Map()
-    for category, cheatList in cheatsData {
-        matched := []
-        for cheat in cheatList {
-            if MatchSearch(cheat.name, searchText)
-                matched.Push(cheat)
+    } else {
+        ; Build a filtered map of categories to matching units
+        filtered := Map()
+        for category, cheatList in unitsData {
+            matched := []
+            for cheat in cheatList {
+                if MatchSearch(cheat.name, searchText)
+                    matched.Push(cheat)
+            }
+            if matched.Length
+                filtered[category] := matched
         }
-        if matched.Length
-            filtered[category] := matched
-    }
+        PopulateTreeView(TreeView, filtered, true)
 
-    PopulateTreeView(TreeView, filtered, true)
-
-    ; Select the first match so Enter pastes it right away
-    firstCategory := TreeView.GetChild(0)
-    if firstCategory {
-        firstMatch := TreeView.GetChild(firstCategory)
-        if firstMatch {
-            TreeView.Modify(firstMatch, "Select")
-            UpdateCheatAmount(firstMatch)
+        ; Select the first match so Enter pastes it right away
+        firstCategory := TreeView.GetChild(0)
+        if firstCategory {
+            firstMatch := TreeView.GetChild(firstCategory)
+            if firstMatch {
+                TreeView.Modify(firstMatch, "Select")
+                UpdateCheatAmount(firstMatch)
+                return
+            }
         }
     }
+    if IsObject(FavBtn)
+        FavBtn.Text := "★ Favorite"
 }
 
-SaveTreeViewState(TreeView, filePath) {
+SaveTreeViewState(tv, filePath, skipIfFiltered := false) {
+    global SearchBox
+    ; Don't overwrite the saved state while the tree is filtered by search
+    if skipIfFiltered && IsObject(SearchBox) && Trim(SearchBox.Value) != ""
+        return
+
+    ; Expanded categories
     state := ""
-    itemId := 0  ; Start at the top of the tree
+    itemId := 0
     Loop {
-        itemId := TreeView.GetNext(itemId, "Full")
+        itemId := tv.GetNext(itemId, "Full")
         if !itemId
             break
-        if TreeView.Get(itemId, "Expand") {
-            itemText := TreeView.GetText(itemId)
-            state .= itemText "`n"
-        }
+        if tv.Get(itemId, "Expand")
+            state .= tv.GetText(itemId) "`n"
     }
-    ; MsgBox "Final TreeView State: " state  ; Debugging message box
-    
-    ; Use FileOpen to write to the file
+
+    ; Last used (selected) item
+    sel := tv.GetSelection()
+    if sel && tv.GetParent(sel)
+        state .= "Selected:" tv.GetText(sel) "`n"
+
+    ; Scroll position (first visible item)
+    topItem := SendMessage(0x110A, 0, 0, tv)  ; TVM_GETFIRSTVISIBLE
+    if topItem
+        state .= "Top:" tv.GetText(topItem) "`n"
+
     file := FileOpen(filePath, "w")
     if file {
         file.Write(state)
@@ -397,54 +737,81 @@ SaveTreeViewState(TreeView, filePath) {
     }
 }
 
-SaveTreeViewStateDebug(*) {
-    global TreeView, TreeViewStateFile
-    SaveTreeViewState(TreeView, TreeViewStateFile)
-}
-
-RestoreTreeViewState(TreeView, filePath) {
+RestoreTreeViewState(tv, filePath) {
     if !FileExist(filePath)
         return
-    
+
     state := FileRead(filePath, "UTF-8")
-    expandedItems := StrSplit(state, "`n")
-    
-    itemId := 0  ; Start at the top of the tree
+    expandedItems := []
+    selName := ""
+    topName := ""
+    Loop Parse, state, "`n", "`r" {
+        line := A_LoopField
+        if SubStr(line, 1, 9) = "Selected:"
+            selName := SubStr(line, 10)
+        else if SubStr(line, 1, 4) = "Top:"
+            topName := SubStr(line, 5)
+        else if Trim(line) != ""
+            expandedItems.Push(line)
+    }
+
+    itemId := 0
+    selId := 0
+    topId := 0
     Loop {
-        itemId := TreeView.GetNext(itemId, "Full")
+        itemId := tv.GetNext(itemId, "Full")
         if !itemId
             break
-        itemText := TreeView.GetText(itemId)
+        itemText := tv.GetText(itemId)
         for expandedItem in expandedItems {
             if itemText = expandedItem {
-                TreeView.Modify(itemId, "Expand")
+                tv.Modify(itemId, "Expand")
                 break
             }
         }
+        if selName != "" && itemText = selName && tv.GetParent(itemId)
+            selId := itemId
+        if topName != "" && itemText = topName
+            topId := itemId
+    }
+
+    ; Restore selection (fires ItemSelect -> status bar/amount update) and scroll
+    if selId
+        tv.Modify(selId, "Select")
+    if topId
+        SendMessage(0x1114, 0, topId, tv)  ; TVM_ENSUREVISIBLE
+}
+
+SaveWindowPos() {
+    global gGui, ConfigFile
+    if !IsObject(gGui) || !GetSetting("RememberPos", 0)
+        return
+    try {
+        WinGetPos(&wx, &wy, , , "ahk_id " gGui.Hwnd)
+        IniWrite(wx, ConfigFile, "WindowPos", "X")
+        IniWrite(wy, ConfigFile, "WindowPos", "Y")
     }
 }
 
 ForceActivateWindow(gui) {
     ; Show the window if it's hidden
     gui.Show()
-    
-    ; Get the window handle
-    hwnd := gui.Hwnd
-    
-    ; Force the window to be on top and active
-    WinSetAlwaysOnTop(true, "ahk_id " hwnd)
-    WinActivate("ahk_id " hwnd)
-    
+
+    ; Force the window to be active
+    WinActivate("ahk_id " gui.Hwnd)
+
     ; Additional forced focus after a small delay
-    SetTimer(FocusWindow.Bind(hwnd), -50)
+    SetTimer(FocusWindow.Bind(gui.Hwnd), -50)
 }
 
 FocusWindow(hwnd) {
-    WinActivate("ahk_id " hwnd)
+    ; The window may have been closed before this timer fired
+    if WinExist("ahk_id " hwnd)
+        WinActivate("ahk_id " hwnd)
 }
 
-; Returns the cheat code of the selected child item, or "" if nothing
-; valid is selected (nothing selected, or a category node).
+; Returns the cheat code of the selected unit in the units tree,
+; or "" if nothing valid is selected.
 GetSelectedCheatCode() {
     global TreeView
     selectedItemId := TreeView.GetSelection()
@@ -468,14 +835,26 @@ ReplaceCheatAmount(cheatCode, amount) {
 }
 
 ClearSelectionUI() {
-    global AmountBox, ImageViewer, CheatCodeDisplay
+    global AmountBox, ImageViewer, RecentImg, FavImg
     AmountBox.Value := ""
-    ImageViewer.Value := ""
-    CheatCodeDisplay.Value := ""
+    for ctrl in [ImageViewer, RecentImg, FavImg]
+        if IsObject(ctrl)
+            ctrl.Value := ""
+    UpdateStatusBar("")
+}
+
+UpdateStatusBar(cheatCode) {
+    global gStatus
+    if !IsObject(gStatus)
+        return
+    if cheatCode != ""
+        gStatus.Text := cheatCode "    [Enter=Paste  Esc=Close]"
+    else
+        gStatus.Text := "Select a cheat - Enter=Paste, Esc=Close"
 }
 
 UpdateCheatAmount(*) {
-    global AmountBox, ImageViewer, CheatCodeDisplay
+    global AmountBox, ImageViewer, FavBtn
 
     cheatCode := GetSelectedCheatCode()
     if !cheatCode {
@@ -483,25 +862,115 @@ UpdateCheatAmount(*) {
         return
     }
 
-    ; Update the text box with the extracted amount
-    AmountBox.Value := ExtractCheatAmount(cheatCode)
+; The Units tab remembers the last amount value used
+    lastAmount := GetSetting("LastUnitsAmount", "")
+    AmountBox.Value := lastAmount != "" ? lastAmount : ExtractCheatAmount(cheatCode)
 
     ; Load the unit image if it exists
-    ImageViewer.Value := ""
-    if RegExMatch(cheatCode, "/give \d+ (\w+) \d+", &unitName) {
-        imagePath := A_ScriptDir "\unit_images\" unitName[1] ".png"
-        if FileExist(imagePath)
-            ImageViewer.Value := imagePath
-    }
+    LoadUnitImage(ImageViewer, cheatCode)
 
-    ; Update the cheat code display
-    CheatCodeDisplay.Value := cheatCode
+    if IsObject(FavBtn)
+        FavBtn.Text := IsFavorite(BaseName(cheatNameFromItem())) ? "★ Unfavorite" : "★ Favorite"
+
+    UpdateStatusBar(GetDisplayedCheatCode())
+}
+
+; Helper: name of the currently selected unit (without favorite marker).
+cheatNameFromItem() {
+    global TreeView
+    return BaseName(TreeView.GetText(TreeView.GetSelection()))
+}
+
+; Applies the Amount box value to a /give cheat code (if applicable).
+ApplyAmount(cheatCode) {
+    global AmountBox
+    if InStr(cheatCode, "/give") && RegExMatch(cheatCode, " (\d+) ")
+        return ReplaceCheatAmount(cheatCode, AmountBox.Value)
+    return cheatCode
+}
+
+; Returns the cheat code of the selected item on the Recent/Favorites/Meta tabs.
+GetSelectedListCode() {
+    global TabCtrl, RecentList, recentDisplay, FavList, favDisplay, MetaList, metaListData
+    if !IsObject(TabCtrl)
+        return ""
+    if TabCtrl.Value = 2 {
+        idx := RecentList.Value
+        return (idx && idx <= recentDisplay.Length) ? recentDisplay[idx].code : ""
+    }
+    if TabCtrl.Value = 3 {
+        idx := FavList.Value
+        return (idx && idx <= favDisplay.Length) ? favDisplay[idx].code : ""
+    }
+    if TabCtrl.Value = 4 {
+        idx := MetaList.Value
+        return (idx && idx <= metaListData.Length) ? metaListData[idx].code : ""
+    }
+    return ""
+}
+
+; Returns true if the active tab has a valid selection.
+HasSelection() {
+    global TabCtrl, RecentList, recentDisplay, FavList, favDisplay, MetaList, metaListData
+    if !IsObject(TabCtrl)
+        return false
+    if TabCtrl.Value = 2
+        return RecentList.Value && RecentList.Value <= recentDisplay.Length
+    if TabCtrl.Value = 3
+        return FavList.Value && FavList.Value <= favDisplay.Length
+    if TabCtrl.Value = 4
+        return MetaList.Value && MetaList.Value <= metaListData.Length
+    return GetSelectedCheatCode() != ""
+}
+
+; Returns the code of the current selection (tree or list) with the
+; Amount box value applied.
+GetDisplayedCheatCode() {
+    global TabCtrl
+    if IsObject(TabCtrl) && (TabCtrl.Value >= 2 && TabCtrl.Value <= 4)
+        cheatCode := GetSelectedListCode()
+    else
+        cheatCode := GetSelectedCheatCode()
+    if !cheatCode
+        return ""
+    return ApplyAmount(cheatCode)
+}
+
+; Selection change on the Recent/Favorites/Meta lists -> fill the amount
+; from the selected code, update the image preview and the status bar
+ListSelectionChanged(ctrl, *) {
+    global AmountBox, RecentList, recentDisplay, FavList, favDisplay, MetaList, metaListData
+    global RecentImg, FavImg, FavBtn, TabCtrl
+    cheatCode := ""
+    itemName := ""
+    idx := ctrl.Value
+    if IsObject(RecentList) && ctrl.Hwnd = RecentList.Hwnd {
+        cheatCode := (idx && idx <= recentDisplay.Length) ? recentDisplay[idx].code : ""
+        if idx && idx <= recentDisplay.Length
+            itemName := BaseName(recentDisplay[idx].name)
+        LoadUnitImage(RecentImg, cheatCode)
+    } else if IsObject(FavList) && ctrl.Hwnd = FavList.Hwnd {
+        cheatCode := (idx && idx <= favDisplay.Length) ? favDisplay[idx].code : ""
+        if idx && idx <= favDisplay.Length
+            itemName := BaseName(favDisplay[idx].name)
+        LoadUnitImage(FavImg, cheatCode)
+    } else if IsObject(MetaList) && ctrl.Hwnd = MetaList.Hwnd {
+        cheatCode := (idx && idx <= metaListData.Length) ? metaListData[idx].code : ""
+        if idx && idx <= metaListData.Length
+            itemName := BaseName(metaListData[idx].name)
+    }
+    if cheatCode != ""
+        AmountBox.Value := ExtractCheatAmount(cheatCode)
+    ; Keep the Favorite button label in sync with the selection
+    if IsObject(FavBtn) && IsObject(TabCtrl) && TabCtrl.Value >= 2 && itemName != ""
+        FavBtn.Text := IsFavorite(itemName) ? "★ Unfavorite" : "★ Favorite"
+    UpdateStatusBar(GetDisplayedCheatCode())
 }
 
 AdjustAmount(delta, min := 0) {
     global AmountBox
 
-    if !GetSelectedCheatCode()
+    if !HasSelection()
         return
 
     amount := AmountBox.Value
@@ -513,7 +982,7 @@ AdjustAmount(delta, min := 0) {
     AmountBox.Value := amount
 
     ; Update the cheat code display with the new amount
-    UpdateCheatCodeDisplay()
+    UpdateStatusBar(GetDisplayedCheatCode())
 }
 
 IncrementAmount(*) {
@@ -527,48 +996,323 @@ DecrementAmount(*) {
 SetAmount(amount) {
     global AmountBox
 
-    if !GetSelectedCheatCode()
+    if !HasSelection()
         return
 
     AmountBox.Value := amount
 
     ; Update the cheat code display with the new amount
-    UpdateCheatCodeDisplay()
+    UpdateStatusBar(GetDisplayedCheatCode())
 }
 
-UpdateCheatCodeDisplay() {
-    global AmountBox, CheatCodeDisplay
+; ---- Favorites ----
 
-    cheatCode := GetSelectedCheatCode()
-    if !cheatCode {
-        CheatCodeDisplay.Value := ""
+; Rebuilds the set of favorite names (starred + "Fav *" categories).
+RebuildFavoriteNames() {
+    global favData, favCheatData, favNameSet
+    favNameSet := Map()
+    for src in [favData, favCheatData] {
+        for fav in src
+            favNameSet[fav.name] := true
+    }
+}
+
+; Strips the favorite marker from a display name.
+BaseName(name) {
+    return SubStr(name, 1, 2) = "★ " ? SubStr(name, 3) : name
+}
+
+; Returns true if the given (base) name is a favorite.
+IsFavorite(name) {
+    global favNameSet
+    return IsObject(favNameSet) && favNameSet.Has(name)
+}
+
+; Returns the display name for a list/tree entry, starred if it's a favorite.
+FavMark(name) {
+    return IsFavorite(name) ? "★ " name : name
+}
+
+; Builds the combined favorites list: starred favorites plus all entries
+; from "Fav *" categories in bar_cheats.txt, deduplicated by name.
+GetFavoriteDisplayList() {
+    global favData, favCheatData
+    list := []
+    seen := Map()
+    for src in [favData, favCheatData] {
+        for fav in src {
+            if !seen.Has(fav.name) {
+                seen[fav.name] := true
+                list.Push({name: fav.name, code: fav.code})
+            }
+        }
+    }
+    return list
+}
+
+RefreshFavList() {
+    global FavList, favDisplay
+    if !IsObject(FavList)
+        return
+    favDisplay := GetFavoriteDisplayList()
+    UpdateFavList(favDisplay)
+}
+
+FilterFavList(*) {
+    global FavSearchBox
+    if Trim(FavSearchBox.Value) = "" {
+        RefreshFavList()
+        return
+    }
+    filtered := []
+    for fav in GetFavoriteDisplayList() {
+        if MatchSearch(fav.name, FavSearchBox.Value)
+            filtered.Push(fav)
+    }
+    UpdateFavList(filtered)
+}
+
+UpdateFavList(list) {
+    global FavList, favDisplay
+    if !IsObject(FavList)
+        return
+    favDisplay := list
+    items := []
+    for fav in list
+        items.Push(fav.name)
+    FavList.Delete()
+    if items.Length
+        FavList.Add(items)
+    if items.Length
+        FavList.Choose(1)
+}
+
+ToggleFavorite(*) {
+    global FavBtn, TabCtrl, TreeView, RecentList, recentDisplay
+
+    if !IsObject(TabCtrl)
+        return
+
+    ; Recent tab: toggle the star on the selected recent entry
+    if TabCtrl.Value = 2 {
+        idx := RecentList.Value
+        if !idx || idx > recentDisplay.Length
+            return
+        name := BaseName(recentDisplay[idx].name)
+        starred := ToggleByName(name, recentDisplay[idx].code)
+        UpdateTreeStar(name, starred)   ; keep the units tree marker in sync
+        ; Rebuild the list without flicker, keeping selection and scroll
+        apply() {
+            RefreshRecentList()
+            RecentList.Choose(idx)
+        }
+        WithListRedrawSuppressed(RecentList, apply)
+        RefreshFavList()        ; favorites tab now shows it at the top
+        FavBtn.Text := starred ? "★ Unfavorite" : "★ Favorite"
         return
     }
 
-    ; Get the edited amount from the text box if the command is /give and has a number
-    if InStr(cheatCode, "/give") && RegExMatch(cheatCode, " (\d+) ")
-        cheatCode := ReplaceCheatAmount(cheatCode, AmountBox.Value)
+    ; Favorites tab: the button removes the selected favorite
+    if TabCtrl.Value = 3 {
+        RemoveFavorite()
+        return
+    }
 
-    ; Update the cheat code display
-    CheatCodeDisplay.Value := cheatCode
+    ; Units tab: toggle the star on the selected tree item
+    if TabCtrl.Value != 1
+        return
+    sel := TreeView.GetSelection()
+    if !sel || !TreeView.GetParent(sel)
+        return
+    name := BaseName(TreeView.GetText(sel))
+    starred := ToggleByName(name, ApplyAmount(GetSelectedCheatCode()))
+    TreeView.Modify(sel, "", starred ? "★ " name : name)
+    FavBtn.Text := starred ? "★ Unfavorite" : "★ Favorite"
+    RefreshFavList()
 }
 
-PasteSelectedCode(*) {
-    global gGui, AmountBox, TreeView, TreeViewStateFile, mouseX, mouseY
-    
-    ; Save TreeView state before hiding the GUI
-    SaveTreeViewState(TreeView, TreeViewStateFile)
-    
-    ; Get the selected item's text and cheat code ("" if nothing valid is selected)
-    cheatCode := GetSelectedCheatCode()
-    if !cheatCode
-        return
-    itemText := TreeView.GetText(TreeView.GetSelection())
+; Adds/removes a favorite by name; returns the new starred state.
+ToggleByName(name, code) {
+    global favData
+    for i, fav in favData {
+        if fav.name = name {
+            favData.RemoveAt(i)
+            SaveFavorites(favData)
+            RebuildFavoriteNames()
+            return false
+        }
+    }
+    favData.InsertAt(1, {name: name, code: ApplyAmount(code)})
+    SaveFavorites(favData)
+    RebuildFavoriteNames()
+    return true
+}
 
-    ; Get the edited amount from the text box if the command is /give and has a number
-    if InStr(cheatCode, "/give") && RegExMatch(cheatCode, " (\d+) ")
-        cheatCode := ReplaceCheatAmount(cheatCode, AmountBox.Value)
-    
+; Runs fn with the listbox's redrawing suspended, then restores the scroll
+; position - rebuilds happen without flicker or scroll jumps.
+WithListRedrawSuppressed(ctrl, fn) {
+    top := SendMessage(0x018E, 0, 0, ctrl.Hwnd)   ; LB_GETTOPINDEX
+    SendMessage(0x000B, false, 0, ctrl.Hwnd)      ; WM_SETREDRAW off
+    fn.Call()
+    SendMessage(0x0197, top, 0, ctrl.Hwnd)        ; LB_SETTOPINDEX
+    SendMessage(0x000B, true, 0, ctrl.Hwnd)       ; WM_SETREDRAW on
+    DllCall("user32\InvalidateRect", "ptr", ctrl.Hwnd, "ptr", 0, "int", 1)
+}
+
+; Updates the star marker on the matching units-tree item (if visible).
+UpdateTreeStar(name, starred) {
+    global TreeView
+    itemId := 0
+    Loop {
+        itemId := TreeView.GetNext(itemId, "Full")
+        if !itemId
+            break
+        if !TreeView.GetParent(itemId)
+            continue
+        if BaseName(TreeView.GetText(itemId)) = name {
+            TreeView.Modify(itemId, "", starred ? "★ " name : name)
+            break
+        }
+    }
+}
+
+RemoveFavorite(*) {
+    global FavList, favData, favDisplay, FavBtn
+    idx := FavList.Value
+    if !idx || idx > favDisplay.Length
+        return
+    name := BaseName(favDisplay[idx].name)
+    found := false
+    for i, fav in favData {
+        if fav.name = name {
+            favData.RemoveAt(i)
+            SaveFavorites(favData)
+            RebuildFavoriteNames()
+            found := true
+            break
+        }
+    }
+    if !found {
+        TrayTip("This favorite comes from a Fav category in bar_cheats.txt - remove it there.", "BAR Cheat")
+        return
+    }
+    ; Remove the row in place (no rebuild -> no flicker/scroll jump)
+    favDisplay.RemoveAt(idx)
+    UpdateTreeStar(name, IsFavorite(name))
+    DeleteListItemInPlace(FavList, idx)
+    newIdx := Min(idx, favDisplay.Length)
+    if newIdx
+        FavList.Choose(newIdx)
+    FavBtn.Text := "★ Favorite"
+    UpdateStatusBar(GetDisplayedCheatCode())
+}
+
+; Removes one ListBox row in place, keeping the scroll position intact.
+DeleteListItemInPlace(ctrl, idx) {
+    top := SendMessage(0x018E, 0, 0, ctrl.Hwnd)      ; LB_GETTOPINDEX
+    SendMessage(0x000B, false, 0, ctrl.Hwnd)         ; WM_SETREDRAW off
+    SendMessage(0x0183, idx - 1, 0, ctrl.Hwnd)       ; LB_DELETESTRING
+    SendMessage(0x0197, top, 0, ctrl.Hwnd)           ; LB_SETTOPINDEX
+    SendMessage(0x000B, true, 0, ctrl.Hwnd)          ; WM_SETREDRAW on
+    DllCall("user32\InvalidateRect", "ptr", ctrl.Hwnd, "ptr", 0, "int", 1)
+}
+
+; ---- Recents ----
+
+RefreshRecentList() {
+    global RecentSearchBox, recentData
+    if !IsObject(RecentList)
+        return
+    if IsObject(RecentSearchBox) && Trim(RecentSearchBox.Value) != "" {
+        filtered := []
+        for r in recentData {
+            if MatchSearch(r.name, RecentSearchBox.Value)
+                filtered.Push(r)
+        }
+        UpdateRecentList(filtered)
+        return
+    }
+    UpdateRecentList(recentData)
+}
+
+FilterRecentList(*) {
+    RefreshRecentList()
+}
+
+UpdateRecentList(list) {
+    global RecentList, recentDisplay
+    if !IsObject(RecentList)
+        return
+    recentDisplay := list
+    items := []
+    for r in list
+        items.Push(FavMark(r.name))
+    RecentList.Delete()
+    if items.Length
+        RecentList.Add(items)
+    if items.Length
+        RecentList.Choose(1)
+}
+
+RemoveRecent(*) {
+    global RecentList, recentData, recentDisplay
+    idx := RecentList.Value
+    if !idx || idx > recentDisplay.Length
+        return
+    name := BaseName(recentDisplay[idx].name)
+    for i, r in recentData {
+        if r.name = name {
+            recentData.RemoveAt(i)
+            break
+        }
+    }
+    SaveRecents(recentData)
+    ; Remove the row in place (no rebuild -> no flicker/scroll jump)
+    recentDisplay.RemoveAt(idx)
+    DeleteListItemInPlace(RecentList, idx)
+    newIdx := Min(idx, recentDisplay.Length)
+    if newIdx
+        RecentList.Choose(newIdx)
+    UpdateStatusBar(GetDisplayedCheatCode())
+}
+
+; ---- Meta ----
+
+; Flat list of the "Cheat" category commands.
+RefreshMetaList() {
+    global MetaList, metaListData, cheatsData
+    if !IsObject(MetaList)
+        return
+    metaListData := []
+    for category, cheatList in cheatsData {
+        for cheat in cheatList
+            metaListData.Push({name: cheat.name, code: cheat.code})
+    }
+    items := []
+    for m in metaListData
+        items.Push(FavMark(m.name))
+    MetaList.Delete()
+    if items.Length
+        MetaList.Add(items)
+    if items.Length
+        MetaList.Choose(1)
+}
+
+PasteRecent(*) {
+    global RecentList, recentDisplay
+    idx := RecentList.Value
+    if !idx || idx > recentDisplay.Length
+        return
+    r := recentDisplay[idx]
+    DoPaste(r.name, ApplyAmount(r.code))
+}
+
+; ---- Pasting ----
+
+; Shared paste routine: activates the game window and types the code.
+DoPaste(cheatName, cheatCode) {
+    global gGui, mouseX, mouseY
+
     ; Verify the game is running; only paste into Beyond All Reason
     gameHwnd := FindGameWindow()
     if !gameHwnd {
@@ -578,7 +1322,7 @@ PasteSelectedCode(*) {
     }
 
     ; Add to recent cheats
-    AddToRecent(itemText, cheatCode)
+    AddToRecent(cheatName, cheatCode)
 
     ; Hide GUI
     gGui.Hide()
@@ -588,32 +1332,89 @@ PasteSelectedCode(*) {
 
     ; Activate the game window
     WinActivate(gameHwnd)
-    
+
     ; Additional delay to ensure window activation
     Sleep(300)
-    
-    ; Send Enter key before the cheat code
+
+    ; Send Enter key to open the chat console
     SendInput("{Enter}")
     Sleep(50)
 
     ; Send the cheat code in one shot
     SendText(cheatCode)
     Sleep(50)
-    
+
     ; Restore mouse position after delay
     Sleep(300)
     MouseMove(mouseX, mouseY)
 
     Sleep(50)
     SendInput("{Enter}")
-    
+
     CloseGui()
 }
 
+PasteSelectedCode(*) {
+    global TabCtrl, TreeView, TreeViewStateFile
+
+    ; Save the tree state before pasting
+    SaveTreeViewState(TreeView, TreeViewStateFile, true)
+
+    ; List tabs paste their selected item
+    if IsObject(TabCtrl) {
+        if TabCtrl.Value = 2 {
+            PasteRecent()
+            return
+        }
+        if TabCtrl.Value = 3 {
+            PasteFavorite()
+            return
+        }
+        if TabCtrl.Value = 4 {
+            PasteMeta()
+            return
+        }
+    }
+
+    ; Units tab pastes from the tree
+    selectedItemId := TreeView.GetSelection()
+    if !selectedItemId || !TreeView.GetParent(selectedItemId)
+        return
+    itemText := TreeView.GetText(selectedItemId)
+
+    DoPaste(itemText, GetDisplayedCheatCode())
+}
+
+PasteMeta(*) {
+    global MetaList, metaListData
+    idx := MetaList.Value
+    if !idx || idx > metaListData.Length
+        return
+    m := metaListData[idx]
+    DoPaste(m.name, ApplyAmount(m.code))
+}
+
+PasteFavorite(*) {
+    global FavList, favDisplay
+    idx := FavList.Value
+    if !idx || idx > favDisplay.Length
+        return
+    fav := favDisplay[idx]
+    DoPaste(fav.name, ApplyAmount(fav.code))
+}
+
 CloseGui(*) {
-    global gGui
-    
+    global gGui, TreeView, TreeViewStateFile, TabCtrl, AmountBox
+
     if IsObject(gGui) {
+        if IsObject(TabCtrl) {
+            SetSetting("LastTab", TabCtrl.Value)
+            ; Remember the amount last used on the Units tab
+            if TabCtrl.Value = 1 && AmountBox.Value != ""
+                SetSetting("LastUnitsAmount", AmountBox.Value)
+        }
+        try SaveTreeViewState(TreeView, TreeViewStateFile, true)
+        SaveWindowPos()
         gGui.Destroy()
         gGui := ""
     }

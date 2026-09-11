@@ -34,7 +34,17 @@ Important: cheating requires the game to have cheats enabled — the host must r
 
 Notes:
 
-- **Custom hotkey**: on first run the script creates `bar_cheat.ini`. Edit the `Hotkey=` value (e.g. `^!c` for Ctrl+Alt+C, see [AutoHotkey hotkey notation](https://www.autohotkey.com/docs/v2/Hotkeys.htm)) and restart the script. An invalid value falls back to Alt+C.
+- **Tabs**: the GUI has five tabs — **Units** (searchable unit tree with image preview), **Recent** (recently used cheats), **Favorites** (starred + "Fav" cheats), **Meta** (cheat commands like `/cheat`, `/godmode`), and **Settings**.
+- **Favorites star**: favorited entries are marked with a ★ in the Units tree, Recent and Meta lists. The ★ Favorite button toggles the star on the selected unit; favorites are deduplicated by name (amount differences don't create new entries).
+- **Selection memory**: the last selected tab, the last selected item, expand state and scroll position of the units tree are all restored on reopen; the Units tab also remembers its last used Amount value.
+- **Shared Amount area**: the Amount box (+/− and 1/2/5/10 presets) sits below the tabs and applies to whichever tab you're on — pick a unit, recent, or favorite, set an amount like 7, and Enter pastes e.g. `/give 7 <unit> 0`.
+- **Recent**: every pasted cheat is recorded in `bar_cheats_recent.txt` and shown on the Recent tab — deduplicated by name, so only the most recent invocation of each cheat is kept. The Recent tab has its own search box; the Remove button deletes the selected entry.
+- **Dark mode** palette: window `#202020`, lists/edits `#2D2D2D`, buttons classic gray with black text (`-Theme` — true dark button faces aren't achievable without owner-drawing), status line `#1A1A1A`, light text, and dark themes for the tab headers, checkboxes and tree (Windows 10 1809+; older systems fall back gracefully). The "Amount" groupbox caption is a colored text control so it stays readable.
+- **Image preview**: a unit preview shows on the Units, Recent and Favorites tabs (192px, collapsed with the "Hide Img" button so the lists grow). The toggle is remembered in `bar_cheat.ini`.
+- **Favorites**: two sources, both shown on the Favorites tab — (1) categories starting with "Fav" (e.g. "Fav Units") in `bar_cheats.txt`, and (2) cheats starred with the "★ Favorite" button (works on the Cheats/Units trees), stored in `bar_cheats_favorites.txt` (gitignored). Starred ones can be removed from the GUI; "Fav" category entries are managed by editing `bar_cheats.txt`. The Favorites tab has its own search box.
+- **Tree memory**: expand/collapse state, last selected item, and scroll position are remembered for both trees (`bar_treeview_state.txt` / `bar_cheattree_state.txt`), and the last used tab is restored on reopen.
+- **Custom hotkey**: set it on the Settings tab with the hotkey box (or edit `Hotkey=` in `bar_cheat.ini`, e.g. `^!c` for Ctrl+Alt+C, see [AutoHotkey hotkey notation](https://www.autohotkey.com/docs/v2/Hotkeys.htm)). An invalid value falls back to Alt+C.
+- **Settings tab** also has toggles for **Always on top**, **Remember window position**, and **Dark mode** — all persisted to `bar_cheat.ini`.
 - **Game detection**: pasting only happens when the game window is detected; otherwise a tray notification is shown and nothing is typed. The window is matched by trying each criterion in `GameWinCriteria` in the script (currently the `spring.exe` engine process, then any window title containing "Beyond All Reason") — adjust if your setup differs.
 - Recent cheats are remembered in `bar_cheats_recent.txt` and shown in a "Recent" category at the top of the tree.
 - The treeview expand/collapse state is saved in `bar_treeview_state.txt`.

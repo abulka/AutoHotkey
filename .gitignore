@@ -52,5 +52,7 @@ $RECYCLE.BIN/
 # Custom rules (everything added below won't be overriden by 'Generate .gitignore File' if you use 'Update' option)
 
 bar_treeview_state.txt
+bar_cheattree_state.txt
 bar_cheats_recent.txt
 bar_cheat.ini
+bar_cheats_favorites.txt
