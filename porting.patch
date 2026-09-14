@@ -1,0 +1,308 @@
+--- /mnt/c/Users/Andy/Documents/AutoHotkey/bar_cheat.ahk	2026-09-11 15:49:44.835356300 +1000
++++ bar_cheat_linux.ahk	2026-09-13 21:23:02.053673445 +1000
+@@ -21,13 +21,13 @@
+ global AmountGroup := ""
+ global HKBox := ""
+ global gStatus := ""
+-global CheatCodesFile := A_ScriptDir "\bar_cheats.txt"
++global CheatCodesFile := A_ScriptDir "/bar_cheats.txt"
+ global LastModified := ""
+-global RecentCheatsFile := A_ScriptDir "\bar_cheats_recent.txt"
++global RecentCheatsFile := A_ScriptDir "/bar_cheats_recent.txt"
+ global LastModifiedRecent := ""
+-global FavoritesFile := A_ScriptDir "\bar_cheats_favorites.txt"
++global FavoritesFile := A_ScriptDir "/bar_cheats_favorites.txt"
+ global TreeView := ""
+-global TreeViewStateFile := A_ScriptDir "\bar_treeview_state.txt"
++global TreeViewStateFile := A_ScriptDir "/bar_treeview_state.txt"
+ global ImageViewer := ""
+ global RecentImg := ""
+ global FavImg := ""
+@@ -41,7 +41,7 @@
+ global metaListData := []
+ global recentData := []
+ global recentDisplay := []
+-global ConfigFile := A_ScriptDir "\bar_cheat.ini"
++global ConfigFile := A_ScriptDir "/bar_cheat.ini"
+ global GameWinCriteria := ["ahk_exe spring.exe", "Beyond All Reason"]
+ global CurrentHotkey := ""
+ 
+@@ -266,6 +266,14 @@
+     FileAppend(content, FavoritesFile)
+ }
+ 
++; The Linux port dispatches the Click event on BOTH mouse-press (event info =
++; the pressed mouse button number) and mouse-release / keyboard activation
++; (event info = 0).  Wrap handlers so only the release/activation event runs
++; the action - one physical click = one call, no debounce needed.
++PortClick(fn) {
++    return (ctrl, info) => (info ? "" : fn.Call())
++}
++
+ ShowGui() {
+     global gGui, AmountBox, SearchBox, TabCtrl, FavList, FavSearchBox, RecentList, RecentSearchBox, MetaList, AmountGroup, FavBtn, HKBox, gStatus
+     global TreeView, ImageViewer, RecentImg, FavImg, ImgToggleBtn
+@@ -306,8 +314,8 @@
+         }
+     }
+ 
+-    dark := GetSetting("DarkMode", 0)
+-    topmost := GetSetting("AlwaysOnTop", 1)
++    dark := Integer(GetSetting("DarkMode", 0))
++    topmost := Integer(GetSetting("AlwaysOnTop", 1))
+ 
+     ; Create new GUI
+     gGui := Gui(topmost ? "+AlwaysOnTop +Owner" : "+Owner")
+@@ -377,16 +385,16 @@
+     HKBox.OnEvent("Change", ApplyHotkeySetting)
+ 
+     chkTopmost := gGui.Add("CheckBox", "x16 y84 w384", "Always on top")
+-    chkTopmost.Value := topmost
+-    chkTopmost.OnEvent("Click", ApplyTopmostSetting)
++    chkTopmost.Value := Integer(topmost)
++    chkTopmost.OnEvent("Click", PortClick(ApplyTopmostSetting))
+ 
+     chkRememberPos := gGui.Add("CheckBox", "x16 y108 w384", "Remember window position")
+-    chkRememberPos.Value := GetSetting("RememberPos", 0)
+-    chkRememberPos.OnEvent("Click", ApplyRememberPosSetting)
++    chkRememberPos.Value := Integer(GetSetting("RememberPos", 0))
++    chkRememberPos.OnEvent("Click", PortClick(ApplyRememberPosSetting))
+ 
+     chkDark := gGui.Add("CheckBox", "x16 y132 w384", "Dark mode (reopens the window)")
+-    chkDark.Value := dark
+-    chkDark.OnEvent("Click", ApplyDarkModeSetting)
++    chkDark.Value := Integer(dark)
++    chkDark.OnEvent("Click", PortClick(ApplyDarkModeSetting))
+ 
+     gGui.Add("Text", "x16 y156 w384", "Settings are saved to bar_cheat.ini in the script folder.")
+ 
+@@ -406,7 +414,7 @@
+     Btn5 := gGui.Add("Button", "x224 y598 w30 " btnOpt, "5")
+     Btn10 := gGui.Add("Button", "x256 y598 w36 " btnOpt, "10")
+     ImgToggleBtn := gGui.Add("Button", "x300 y598 w84 " btnOpt, "Hide Img")
+-    ImgToggleBtn.OnEvent("Click", ToggleImagePreview)
++    ImgToggleBtn.OnEvent("Click", PortClick(ToggleImagePreview))
+ 
+     ; Paste is the default button, placed first for prominence.
+     ; In dark mode it loses the default glow (Enter still works via hotkey).
+@@ -423,9 +431,9 @@
+     }
+ 
+     ; Restore the last used tab
+-    lastTab := GetSetting("LastTab", 1)
++    lastTab := Integer(GetSetting("LastTab", 1))
+     if lastTab >= 1 && lastTab <= 5
+-        TabCtrl.Value := lastTab
++        TabCtrl.Value := Integer(lastTab)
+ 
+     ; Load favorites first so trees/lists can mark favorites with a star
+     favData := LoadFavorites()
+@@ -465,17 +473,17 @@
+         ApplyDarkControls()
+ 
+     ; Event handlers
+-    FavBtn.OnEvent("Click", ToggleFavorite)
+-    PasteBtn.OnEvent("Click", PasteSelectedCode)
+-    CloseBtn.OnEvent("Click", CloseGui)
+-    IncBtn.OnEvent("Click", IncrementAmount)
+-    DecBtn.OnEvent("Click", DecrementAmount)
+-    Btn1.OnEvent("Click", (*) => SetAmount(1))
+-    Btn2.OnEvent("Click", (*) => SetAmount(2))
+-    Btn5.OnEvent("Click", (*) => SetAmount(5))
+-    Btn10.OnEvent("Click", (*) => SetAmount(10))
+-    RemoveFavBtn.OnEvent("Click", RemoveFavorite)
+-    RemoveRecentBtn.OnEvent("Click", RemoveRecent)
++    FavBtn.OnEvent("Click", PortClick(ToggleFavorite))
++    PasteBtn.OnEvent("Click", PortClick(PasteSelectedCode))
++    CloseBtn.OnEvent("Click", PortClick(CloseGui))
++    IncBtn.OnEvent("Click", PortClick(IncrementAmount))
++    DecBtn.OnEvent("Click", PortClick(DecrementAmount))
++    Btn1.OnEvent("Click", PortClick((*) => SetAmount(1)))
++    Btn2.OnEvent("Click", PortClick((*) => SetAmount(2)))
++    Btn5.OnEvent("Click", PortClick((*) => SetAmount(5)))
++    Btn10.OnEvent("Click", PortClick((*) => SetAmount(10)))
++    RemoveFavBtn.OnEvent("Click", PortClick(RemoveFavorite))
++    RemoveRecentBtn.OnEvent("Click", PortClick(RemoveRecent))
+ 
+     ; Status line shows the selected cheat code and hints (a text control
+     ; instead of a real status bar so dark mode can style it)
+@@ -487,19 +495,19 @@
+ 
+     ; Show the window, restoring the saved position if enabled
+     showOpts := "w424 h704"
+-    if GetSetting("RememberPos", 0) {
++    if Integer(GetSetting("RememberPos", 0)) {
+         px := IniRead(ConfigFile, "WindowPos", "X", "")
+         py := IniRead(ConfigFile, "WindowPos", "Y", "")
+         if px != "" && py != "" {
+-            px := Min(Max(px + 0, -200), A_ScreenWidth - 100)
+-            py := Min(Max(py + 0, 0), A_ScreenHeight - 100)
++            px := Min(Max(Number(px), -200), Number(A_ScreenWidth) - 100)
++            py := Min(Max(Number(py), 0), Number(A_ScreenHeight) - 100)
+             showOpts .= " x" px " y" py
+         }
+     }
+ gGui.Show(showOpts)
+     if dark {
+         ; Dark title bar (Windows 10 2004+)
+-        try DllCall("dwmapi\DwmSetWindowAttribute", "ptr", gGui.Hwnd, "uint", 20, "int*", 1, "uint", 4)
++        ; Linux: DllCall("dwmapi\DwmSetWindowAttribute") omitted
+     }
+     ForceActivateWindow(gGui)
+ 
+@@ -555,13 +563,17 @@
+ LoadUnitImage(pic, cheatCode) {
+     if !IsObject(pic)
+         return
+-    pic.Value := ""
++    ; Note: DO NOT clear pic.Value first - setting "" breaks the Picture
++    ; control on the Linux port (subsequent sets throw "Invalid value").
+     if !RegExMatch(cheatCode, "/give \d+ (\w+) \d+", &unitName)
+         return
+-    imagePath := A_ScriptDir "\unit_images\" unitName[1] ".png"
++    imagePath := A_ScriptDir "/unit_images/" unitName[1] ".png"
+     if !FileExist(imagePath)
+         return
+-    pic.Value := imagePath
++    try
++        pic.Value := imagePath
++    catch
++        return
+ }
+ 
+ ; Settings tab handlers
+@@ -603,14 +615,17 @@
+     global TreeView
+ 
+     ; Only pick a default selection if the state restore didn't provide one
+-    if TreeView.GetSelection()
+-        return
+-    firstCategory := TreeView.GetChild(0)
+-    if firstCategory {
+-        firstChild := TreeView.GetChild(firstCategory)
+-        if firstChild {
+-            TreeView.Modify(firstCategory, "Expand")
+-            TreeView.Modify(firstChild, "Select")
++    ; (guarded on the port: scripted selection tracking is unreliable)
++    try {
++        if TreeView.GetSelection()
++            return
++        firstCategory := TreeView.GetChild(0)
++        if firstCategory {
++            firstChild := TreeView.GetChild(firstCategory)
++            if firstChild {
++                TreeView.Modify(firstCategory, "Expand")
++                TreeView.Modify(firstChild, "Select")
++            }
+         }
+     }
+ }
+@@ -779,7 +794,7 @@
+     if selId
+         tv.Modify(selId, "Select")
+     if topId
+-        SendMessage(0x1114, 0, topId, tv)  ; TVM_ENSUREVISIBLE
++        try SendMessage(0x1114, 0, topId, tv)  ; TVM_ENSUREVISIBLE (guarded: SendMessage is flaky on the port)
+ }
+ 
+ SaveWindowPos() {
+@@ -797,8 +812,11 @@
+     ; Show the window if it's hidden
+     gui.Show()
+ 
+-    ; Force the window to be active
+-    WinActivate("ahk_id " gui.Hwnd)
++    ; Force the window to be active (wrapped: throws on Linux when unmatchable)
++    try
++        WinActivate("ahk_id " gui.Hwnd)
++    catch {
++    }
+ 
+     ; Additional forced focus after a small delay
+     SetTimer(FocusWindow.Bind(gui.Hwnd), -50)
+@@ -807,7 +825,10 @@
+ FocusWindow(hwnd) {
+     ; The window may have been closed before this timer fired
+     if WinExist("ahk_id " hwnd)
+-        WinActivate("ahk_id " hwnd)
++        try
++            WinActivate("ahk_id " hwnd)
++        catch {
++        }
+ }
+ 
+ ; Returns the cheat code of the selected unit in the units tree,
+@@ -837,9 +858,8 @@
+ ClearSelectionUI() {
+     global AmountBox, ImageViewer, RecentImg, FavImg
+     AmountBox.Value := ""
+-    for ctrl in [ImageViewer, RecentImg, FavImg]
+-        if IsObject(ctrl)
+-            ctrl.Value := ""
++    ; Pictures cannot be cleared on the Linux port - Value := "" breaks the
++    ; control (later sets throw "Invalid value"). Leave the last image shown.
+     UpdateStatusBar("")
+ }
+ 
+@@ -878,7 +898,12 @@
+ ; Helper: name of the currently selected unit (without favorite marker).
+ cheatNameFromItem() {
+     global TreeView
+-    return BaseName(TreeView.GetText(TreeView.GetSelection()))
++    ; On the Linux port, scripted selections (Modify ... "Select") may not be
++    ; tracked, leaving GetSelection() == 0; GetText(0) would hang the port.
++    sel := TreeView.GetSelection()
++    if !sel
++        return ""
++    return BaseName(TreeView.GetText(sel))
+ }
+ 
+ ; Applies the Amount box value to a /give cheat code (if applicable).
+@@ -1151,12 +1176,8 @@
+ ; Runs fn with the listbox's redrawing suspended, then restores the scroll
+ ; position - rebuilds happen without flicker or scroll jumps.
+ WithListRedrawSuppressed(ctrl, fn) {
+-    top := SendMessage(0x018E, 0, 0, ctrl.Hwnd)   ; LB_GETTOPINDEX
+-    SendMessage(0x000B, false, 0, ctrl.Hwnd)      ; WM_SETREDRAW off
++    ; win32 redraw/scroll suspension is inert on the Linux port - just run it.
+     fn.Call()
+-    SendMessage(0x0197, top, 0, ctrl.Hwnd)        ; LB_SETTOPINDEX
+-    SendMessage(0x000B, true, 0, ctrl.Hwnd)       ; WM_SETREDRAW on
+-    DllCall("user32\InvalidateRect", "ptr", ctrl.Hwnd, "ptr", 0, "int", 1)
+ }
+ 
+ ; Updates the star marker on the matching units-tree item (if visible).
+@@ -1196,10 +1217,10 @@
+         TrayTip("This favorite comes from a Fav category in bar_cheats.txt - remove it there.", "BAR Cheat")
+         return
+     }
+-    ; Remove the row in place (no rebuild -> no flicker/scroll jump)
++    ; The Linux port cannot delete one ListBox row in place; rebuild instead.
+     favDisplay.RemoveAt(idx)
+     UpdateTreeStar(name, IsFavorite(name))
+-    DeleteListItemInPlace(FavList, idx)
++    UpdateFavList(favDisplay)
+     newIdx := Min(idx, favDisplay.Length)
+     if newIdx
+         FavList.Choose(newIdx)
+@@ -1214,7 +1235,7 @@
+     SendMessage(0x0183, idx - 1, 0, ctrl.Hwnd)       ; LB_DELETESTRING
+     SendMessage(0x0197, top, 0, ctrl.Hwnd)           ; LB_SETTOPINDEX
+     SendMessage(0x000B, true, 0, ctrl.Hwnd)          ; WM_SETREDRAW on
+-    DllCall("user32\InvalidateRect", "ptr", ctrl.Hwnd, "ptr", 0, "int", 1)
++    ; DllCall("user32\InvalidateRect", "ptr", ctrl.Hwnd, "ptr", 0, "int", 1)  ; win32-only, no-op on the Linux port
+ }
+ 
+ ; ---- Recents ----
+@@ -1267,9 +1288,9 @@
+         }
+     }
+     SaveRecents(recentData)
+-    ; Remove the row in place (no rebuild -> no flicker/scroll jump)
++    ; The Linux port cannot delete one ListBox row in place; rebuild instead.
+     recentDisplay.RemoveAt(idx)
+-    DeleteListItemInPlace(RecentList, idx)
++    UpdateRecentList(recentDisplay)
+     newIdx := Min(idx, recentDisplay.Length)
+     if newIdx
+         RecentList.Choose(newIdx)
