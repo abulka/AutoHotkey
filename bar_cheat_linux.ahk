@@ -6,6 +6,23 @@
 ; Match window titles by substring (needed for the title-based game fallback)
 SetTitleMatchMode(2)
 
+; Cross-platform flag: the AHK Linux port cannot call Windows DLLs
+; (DllCall("user32\...") throws "Windows DLL is not available on Linux"),
+; so detect the platform once at startup instead of relying on variables
+; like A_OSType, which the port does not implement.
+;
+; Run this script with the standard Windows AHK v2 interpreter on Windows,
+; or with the Linux port build on WSL/Silverblue - all feature paths below
+; switch on this flag.
+global IsWslPort := DetectWslPort()
+DetectWslPort() {
+    try {
+        DllCall("user32\GetForegroundWindow")
+        return false
+    }
+    return true
+}
+
 ; Global variables
 global gGui := ""
 global mouseX := 0, mouseY := 0
@@ -506,8 +523,9 @@ ShowGui() {
     }
 gGui.Show(showOpts)
     if dark {
-        ; Dark title bar (Windows 10 2004+)
-        ; Linux: DllCall("dwmapi\DwmSetWindowAttribute") omitted
+        ; Dark title bar (Windows 10 2004+); no-op on the Linux port where the
+        ; DllCall throws (caught) instead of silently succeeding.
+        try DllCall("dwmapi\DwmSetWindowAttribute", "ptr", gGui.Hwnd, "uint", 20, "int*", 1, "uint", 4)
     }
     ForceActivateWindow(gGui)
 
@@ -563,8 +581,11 @@ ToggleImagePreview(*) {
 LoadUnitImage(pic, cheatCode) {
     if !IsObject(pic)
         return
-    ; Note: DO NOT clear pic.Value first - setting "" breaks the Picture
-    ; control on the Linux port (subsequent sets throw "Invalid value").
+    ; Clear the current image on Windows.  On the Linux port setting Value to
+    ; "" breaks the Picture control (later sets throw "Invalid value"), so the
+    ; previous image is simply left in place there.
+    if !IsWslPort
+        pic.Value := ""
     if !RegExMatch(cheatCode, "/give \d+ (\w+) \d+", &unitName)
         return
     imagePath := A_ScriptDir "/unit_images/" unitName[1] ".png"
@@ -860,6 +881,10 @@ ClearSelectionUI() {
     AmountBox.Value := ""
     ; Pictures cannot be cleared on the Linux port - Value := "" breaks the
     ; control (later sets throw "Invalid value"). Leave the last image shown.
+    if !IsWslPort
+        for ctrl in [ImageViewer, RecentImg, FavImg]
+            if IsObject(ctrl)
+                ctrl.Value := ""
     UpdateStatusBar("")
 }
 
@@ -1176,8 +1201,16 @@ ToggleByName(name, code) {
 ; Runs fn with the listbox's redrawing suspended, then restores the scroll
 ; position - rebuilds happen without flicker or scroll jumps.
 WithListRedrawSuppressed(ctrl, fn) {
-    ; win32 redraw/scroll suspension is inert on the Linux port - just run it.
+    ; win32 redraw suspension gives flicker-free rebuilds on Windows.  On the
+    ; Linux port the messages are inert no-ops and the InvalidateRect DllCall
+    ; throws (caught), so it degrades to a plain fn.Call() there.
+    top := SendMessage(0x018E, 0, 0, ctrl.Hwnd)   ; LB_GETTOPINDEX
+    SendMessage(0x000B, false, 0, ctrl.Hwnd)      ; WM_SETREDRAW off
     fn.Call()
+    SendMessage(0x0197, top, 0, ctrl.Hwnd)        ; LB_SETTOPINDEX
+    SendMessage(0x000B, true, 0, ctrl.Hwnd)       ; WM_SETREDRAW on
+    try
+        DllCall("user32\InvalidateRect", "ptr", ctrl.Hwnd, "ptr", 0, "int", 1)
 }
 
 ; Updates the star marker on the matching units-tree item (if visible).
@@ -1235,7 +1268,8 @@ DeleteListItemInPlace(ctrl, idx) {
     SendMessage(0x0183, idx - 1, 0, ctrl.Hwnd)       ; LB_DELETESTRING
     SendMessage(0x0197, top, 0, ctrl.Hwnd)           ; LB_SETTOPINDEX
     SendMessage(0x000B, true, 0, ctrl.Hwnd)          ; WM_SETREDRAW on
-    ; DllCall("user32\InvalidateRect", "ptr", ctrl.Hwnd, "ptr", 0, "int", 1)  ; win32-only, no-op on the Linux port
+    try
+        DllCall("user32\InvalidateRect", "ptr", ctrl.Hwnd, "ptr", 0, "int", 1)
 }
 
 ; ---- Recents ----
