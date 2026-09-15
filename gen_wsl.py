@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 import os
 
-SRC = "/tmp/bar_proj/bar_cheat_linux.ahk"
-OUT = "/tmp/bar_proj/bar_cheat_wsl.ahk"
-DBG = "/tmp/bar_proj/wsl_dbg.log"
+HERE = os.path.dirname(os.path.realpath(__file__))
+SRC = os.path.join(HERE, "bar_cheat.ahk")
+OUT = os.path.join(HERE, "bar_cheat_wsl.ahk")
 
-WRAPPER = """; === WSL GUI-INSPECT WRAPPER (diagnostic build; not part of the porting patch) ===
+WRAPPER = """; === WSL GUI-INSPECT WRAPPER (diagnostic build; not part of the app) ===
 DbgLog(msg) {
-    FileAppend(msg "`n", "/tmp/bar_proj/wsl_dbg.log")
+    FileAppend(msg "`n", A_ScriptDir "/wsl_dbg.log")
 }
 LogWslError(e, mode) {
     DbgLog("ERR: msg=" e.Message "  line=" e.Line "  what=" e.What "  extra=" e.Extra "  mode=" mode)
@@ -66,7 +66,7 @@ DbgStartup() {
 }
 OpenGuiForWsl() {
     global gGui
-    try FileDelete("/tmp/bar_proj/wsl_dbg.log")
+    try FileDelete(A_ScriptDir "/wsl_dbg.log")
     try {
         OnError(LogWslError)
     } catch as x {

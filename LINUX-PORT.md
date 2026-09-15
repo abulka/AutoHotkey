@@ -61,14 +61,23 @@ clearing Picture controls (`ClearSelectionUI`, `LoadUnitImage`).
 
 ## Workflow
 
-- Edit `bar_cheat.ahk` (any platform). Regenerate the debug build:
-  `python3 gen_wsl.py` (reads `/tmp/bar_proj/bar_cheat_linux.ahk` — update the
-  source path if it moves).
-- Run on WSL: `cd <repo> && /home/andy/.local/bin/ahk bar_cheat_wsl.ahk`
-  (set `WAYLAND_DISPLAY=` if using Xvfb so GTK doesn't hit the WSLg compositor).
-- Diagnostic output: `wsl_dbg.log` (gitignored).
+- Edit `bar_cheat.ahk` (any platform). Regenerate the diagnostic build with
+  `python3 gen_wsl.py` from inside the repo — it is location-agnostic and
+  produces `bar_cheat_wsl.ahk` next to the source.
+- Run on Linux: `ahk bar_cheat.ahk` for normal use, or
+  `ahk bar_cheat_wsl.ahk` to auto-open the GUI and enable diagnostics.
+- Diagnostic output: `wsl_dbg.log` next to the script (gitignored).
+- Install instructions and per-distro input caveats: see `README.md`
+  ("Running on Linux").
 
-## Verified on Linux port (Xvfb quarantine)
+## Verified
+
+### Windows (checked by the author on real AHK v2)
+- Passed after the fold: forward-slash paths load/save, one action per click
+  (PortClick single-fires), pictures still clear on preview toggle, dark title
+  bar still sets, no flicker/regressions in the redesign features.
+
+### Linux port (Xvfb quarantine)
 
 - Parse + full GUI render, 8 categories / 192 unit images / recents / favorites.
 - Favorite toggle + star marker in tree; favorite/recent removal (no throw);
@@ -80,9 +89,7 @@ clearing Picture controls (`ClearSelectionUI`, `LoadUnitImage`).
 
 ## Gates NOT yet done
 
-- **Windows regressions (Phase 5 gate):** check out `bar_cheat.ahk` on real
-  Windows AHK v2 and smoke-test — paths with `/`, guards no-op, PortClick
-  single-fires, picture clearing still happens, dark title bar still sets,
-  framerate/flicker unchanged. Then push/merge onward.
-- Silverblue/Wayland: hotkey via GNOME portal and XTEST Send into BAR are still
-  untested (WSL2 cannot exercise the input lane; needs `/dev/uinput`/inputd).
+- Silverblue/Wayland input lane: global hotkey via GNOME portal/extension and
+  XTEST `Send` into BAR are still untested (WSL2 cannot exercise the input
+  lane — no `/dev/uinput`/inputd). Test on real hardware with an Xorg session
+  first; see README section 3 for why.

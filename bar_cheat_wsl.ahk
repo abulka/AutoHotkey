@@ -92,9 +92,9 @@ Enter::PasteSelectedCode
 Escape::CloseGui()
 #HotIf
 
-; === WSL GUI-INSPECT WRAPPER (diagnostic build; not part of the porting patch) ===
+; === WSL GUI-INSPECT WRAPPER (diagnostic build; not part of the app) ===
 DbgLog(msg) {
-    FileAppend(msg "`n", "/tmp/bar_proj/wsl_dbg.log")
+    FileAppend(msg "`n", A_ScriptDir "/wsl_dbg.log")
 }
 LogWslError(e, mode) {
     DbgLog("ERR: msg=" e.Message "  line=" e.Line "  what=" e.What "  extra=" e.Extra "  mode=" mode)
@@ -153,7 +153,7 @@ DbgStartup() {
 }
 OpenGuiForWsl() {
     global gGui
-    try FileDelete("/tmp/bar_proj/wsl_dbg.log")
+    try FileDelete(A_ScriptDir "/wsl_dbg.log")
     try {
         OnError(LogWslError)
     } catch as x {

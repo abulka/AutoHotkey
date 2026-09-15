@@ -86,3 +86,99 @@ Game Commands
     No cost OFF|/nocost 0
 ```
 
+## Running on Linux
+
+`bar_cheat.ahk` is a single cross-platform source: the same file runs on
+Windows (official AutoHotkey v2) and on the [AutoHotkey v2 Linux port](https://github.com/MonoEven/Autohotkey_Linux)
+(v2.0.26-linux.23) with no edits. `LINUX-PORT.md` documents the small set of
+porting accommodations built into it.
+
+### 1. Install AutoHotkey for Linux
+
+Download the package for your system from
+[GitHub Releases](https://github.com/MonoEven/Autohotkey_Linux/releases), then:
+
+- **Debian / Ubuntu (including WSL2):**
+  ```bash
+  sudo apt install ./autohotkey-linux-2.0.26-linux.23-amd64.deb
+  ```
+- **Fedora:**
+  ```bash
+  sudo dnf install ./autohotkey-linux-2.0.26-linux.23-x86_64.rpm
+  ```
+- **Any Linux (no root; easiest for distrobox/Silverblue):** extract the generic
+  tarball and run its installer into `~/.local`:
+  ```bash
+  tar xf <tarball>
+  ./tools/linux/install.sh --prefix ~/.local --yes
+  export PATH="$HOME/.local/bin:$PATH"     # add to ~/.bashrc
+  ```
+
+Verify the install and that the script parses:
+
+```bash
+ahk --version
+ahk --check bar_cheat.ahk
+```
+
+### 2. Run the cheat
+
+```bash
+cd /path/to/AutoHotkey
+ahk bar_cheat.ahk
+```
+
+The GUI, tabs, unit tree, preview images, favorites and recents behave the same
+as on Windows. State files (`bar_cheat.ini`, favorites, recents, tree state)
+are read/written in the script folder, so the folder must be writable.
+
+For startup diagnostics (parse/load errors), the script ships with a diagnostic
+build that auto-opens the GUI and writes `./wsl_dbg.log`:
+
+```bash
+python3 gen_wsl.py      # regenerates bar_cheat_wsl.ahk from bar_cheat.ahk
+ahk bar_cheat_wsl.ahk
+```
+
+### 3. Input caveats (hotkey + typing into the game)
+
+The **game-facing features need a real input backend**, which depends on where
+you run it:
+
+- **Stock WSL2:** there is no `/dev/uinput` and no X server input grab, so the
+  global **Alt+C** hotkey and `Send` into the game do **not** work. Use WSL2 to
+  test/preview the GUI (run `bar_cheat_wsl.ahk`; the GUI auto-opens).
+- **X11 / XWayland desktop session** (e.g. "GNOME on Xorg"): fully supported —
+  Alt+C and typing the paste work out of the box (XTEST backend).
+- **Native Wayland** (GNOME/KDE Wayland session): the global hotkey needs the
+  port's optional GNOME Shell extension or the XDG portal path, and `Send`
+  needs the libei consent flow (or the evdev/uinput daemon). See the port's
+  [docs](https://monoeven.github.io/Autohotkey_Linux/). The simplest reliable
+  lane today is an **Xorg session**.
+
+### 4. Fedora Silverblue
+
+Silverblue's root filesystem is immutable, so **don't** `rpm-ostree`-layer the
+AHK RPM onto the host image (it pins a GUI runtime to the image, needs a reboot,
+and is dropped on the next rebase). Instead, run AHK in a **distrobox**
+container — mutable, and it wires up `$DISPLAY`/`$WAYLAND_DISPLAY`, XWayland,
+D-Bus and devices automatically:
+
+```bash
+distrobox create --name ahk --image fedora:latest
+distrobox enter --name ahk
+
+# inside the container:
+sudo dnf install ./autohotkey-linux-2.0.26-linux.23-x86_64.rpm   # or use the
+#   ~/.local tarball install from section 1 — either works
+ahk --version
+
+# your home directory (incl. this repo) is mounted inside the container:
+cd ~/Documents/AutoHotkey
+ahk bar_cheat.ahk
+```
+
+Needed only once (pod/image create); afterwards it starts with
+`distrobox enter --name ahk`. For the simplest input path on Silverblue choose
+an **Xorg session** ("GNOME on Xorg") at login rather than Wayland.
+
