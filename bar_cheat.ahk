@@ -15,6 +15,27 @@ SetTitleMatchMode(2)
 ; or with the Linux port build on WSL/Silverblue - all feature paths below
 ; switch on this flag.
 global IsWslPort := DetectWslPort()
+global EnterKey := IsWslPort ? "{NumpadEnter}" : "{Enter}"
+
+; Keep the GTK GUI on the XWayland lane: the port's Win* functions (window
+; activation, the "BAR Cheat" hotkey criterion) cannot see native-Wayland
+; windows.  Only force it when an X display exists so pure-Wayland systems
+; still get a GUI.
+if IsWslPort {
+    try {
+        if EnvGet("DISPLAY") != ""
+            EnvSet("GDK_BACKEND", "x11")
+    }
+}
+global LastPasteFire := 0
+global UinputFd := 0
+global UinputTried := false
+global UinputUsable := false
+global PortTreeWidgets := Map()
+global PortUiLastTab := -1
+global PortUiLastRecent := -1
+global PortUiLastFav := -1
+global PortUiLastMeta := -1
 DetectWslPort() {
     try {
         DllCall("user32\GetForegroundWindow")
@@ -62,14 +83,15 @@ global ConfigFile := A_ScriptDir "/bar_cheat.ini"
 global GameWinCriteria := ["ahk_exe spring.exe", "Beyond All Reason"]
 global CurrentHotkey := ""
 
-; Returns the hwnd of the game window, or 0 if not found.
-; Tries each criteria in GameWinCriteria in order.
+; Returns the window title/criteria of the game window, or 0 if not found.
+; (WinTitle strings work on Windows and the Linux port; raw hwnds and
+; ahk_id/ahk_class do not match reliably on the Linux port.)
 FindGameWindow() {
     global GameWinCriteria
     for criteria in GameWinCriteria {
         hwnd := WinExist(criteria)
         if hwnd
-            return hwnd
+            return criteria
     }
     return 0
 }
@@ -85,11 +107,25 @@ SetSetting(name, value) {
     IniWrite(value, ConfigFile, "Settings", name)
 }
 
-; Define hotkeys for when GUI is active
-#HotIf WinActive("ahk_class AutoHotkeyGUI")
-Enter::PasteSelectedCode
-Escape::CloseGui()
-#HotIf
+; Define hotkeys for when the cheat GUI is active.
+; Windows keeps the classic context-sensitive label hotkeys.  On the Linux
+; port a grabbed key whose #HotIf criterion is false is passed through with
+; XTEST, which this environment drops for non-text keys - a grabbed
+; Enter/Escape therefore vanishes system-wide while the script runs.
+; Linux instead registers Enter only while the cheat window is focused
+; (toggled by PortFocusWatch) and handles Escape through the GUI's own
+; Escape event (see ShowGui), so no global grab is ever held.
+if IsWslPort {
+    HotIfWinActive("BAR Cheat")
+    Hotkey("Enter", PasteSelectedCode, "Off")
+    HotIf()
+    SetTimer(PortFocusWatch, 100)
+} else {
+    HotIfWinActive("BAR Cheat")
+    Hotkey("Enter", PasteSelectedCode)
+    Hotkey("Escape", CloseGui)
+    HotIf()
+}
 
 ; Set up the configurable hotkey (default Alt+C, see bar_cheat.ini)
 SetupHotkey()
@@ -291,6 +327,440 @@ PortClick(fn) {
     return (ctrl, info) => (info ? "" : fn.Call())
 }
 
+; ---- Linux port UI/input workarounds --------------------------------------
+; The GTK3 backend of the Linux port has a few gaps the Windows build does
+; not:
+;   * TreeView item options ("Expand"/"Select") are ignored, so search
+;     auto-expand and scripted selection never happen;
+;   * the tree text renderer is always editable, so double-click starts a
+;     label edit instead of activating the row;
+;   * ListBox selection changes are dispatched as ItemFocus (unsupported by
+;     ListBox) instead of Change, so the lists never update the status line;
+;   * with an X display present Send always uses XTEST, which needs the libei
+;     "remote interaction" consent and drops non-text keys.
+; The helpers below drive GTK/uinput directly; Windows never calls them.
+
+; The port's DllCall splits the "lib\function" string in place (it writes a
+; NUL at the backslash), corrupting the string literal so that a repeated
+; call with the same literal fails with "Call to nonexistent function".
+; Build the spec at runtime so every call gets a fresh, disposable string.
+PortDll(lib, func, params*) {
+    return DllCall(lib "\" func, params*)
+}
+
+; Keeps the Enter hotkey grabbed only while the cheat window is focused.
+; Hotkey(..., "Off") ungrabs it, so other applications always get Enter.
+PortFocusWatch() {
+    static wasActive := false
+    active := false
+    try
+        active := WinActive("BAR Cheat") ? true : false
+    if active = wasActive
+        return
+    wasActive := active
+    try {
+        HotIfWinActive("BAR Cheat")
+        Hotkey("Enter", active ? "On" : "Off")
+    } finally {
+        HotIf()
+    }
+}
+
+; The port never raises the ListBox Change event; poll the active list while
+; the GUI exists so the status line, amount and preview stay in sync.
+PortUiWatch() {
+    global TabCtrl, RecentList, FavList, MetaList, gGui
+    global PortUiLastTab, PortUiLastRecent, PortUiLastFav, PortUiLastMeta
+    if !IsObject(gGui) || !IsObject(TabCtrl)
+        return
+    tab := TabCtrl.Value
+    if tab != PortUiLastTab {
+        PortUiLastTab := tab
+        PortUiLastRecent := RecentList.Value
+        PortUiLastFav := FavList.Value
+        PortUiLastMeta := MetaList.Value
+        if tab = 2
+            ListSelectionChanged(RecentList)
+        else if tab = 3
+            ListSelectionChanged(FavList)
+        else if tab = 4
+            ListSelectionChanged(MetaList)
+        return
+    }
+    if tab = 2 {
+        value := RecentList.Value
+        if value != PortUiLastRecent {
+            PortUiLastRecent := value
+            ListSelectionChanged(RecentList)
+        }
+    } else if tab = 3 {
+        value := FavList.Value
+        if value != PortUiLastFav {
+            PortUiLastFav := value
+            ListSelectionChanged(FavList)
+        }
+    } else if tab = 4 {
+        value := MetaList.Value
+        if value != PortUiLastMeta {
+            PortUiLastMeta := value
+            ListSelectionChanged(MetaList)
+        }
+    }
+}
+
+; Resolves the GtkTreeView pointer behind a TreeView control.  The port's
+; script-visible .Hwnd is an opaque 32-bit handle, not a pointer, so the
+; widget is located through GTK: the cheat window's unit tree is the
+; GtkTreeView whose model has two columns (name + item id), while the
+; ListBoxes use one-column models.  Results are cached per control handle.
+PortTreeWidget(tv) {
+    global PortTreeWidgets
+    if !IsObject(tv)
+        return 0
+    hwnd := tv.Hwnd
+    if PortTreeWidgets.Has(hwnd)
+        return PortTreeWidgets[hwnd]
+    widget := PortFindUnitsTree()
+    PortTreeWidgets[hwnd] := widget
+    return widget
+}
+
+; GtkWindow pointer of the top-level window with the given title, or 0.
+PortFindWindow(title) {
+    wins := PortDll("libgtk-3.so.0", "gtk_window_list_toplevels", "ptr")
+    node := wins
+    while node {
+        win := NumGet(node, 0, "ptr")
+        node := NumGet(node, A_PtrSize, "ptr")
+        if !win
+            continue
+        titlePtr := PortDll("libgtk-3.so.0", "gtk_window_get_title", "ptr", win, "ptr")
+        if titlePtr && StrGet(titlePtr, "UTF-8") = title
+            return win
+    }
+    return 0
+}
+
+PortFindUnitsTree() {
+    win := PortFindWindow("BAR Cheat Codes")
+    if !win
+        return 0
+    return PortFindTreeByColumns(win, 2)
+}
+
+; Finds the GtkTreeView whose model has the given column count (the unit
+; tree uses 2 columns; the ListBoxes use 1).  Iterative on purpose: the
+; port's DllCall breaks when called from a recursive AHK function.
+PortFindTreeByColumns(root, columns) {
+    tvType := PortDll("libgtk-3.so.0", "gtk_tree_view_get_type", "ptr")
+    containerType := PortDll("libgtk-3.so.0", "gtk_container_get_type", "ptr")
+    queue := [root]
+    while queue.Length {
+        widget := queue.Pop()
+        if PortDll("libgobject-2.0.so.0", "g_type_check_instance_is_a", "ptr", widget, "ptr", tvType, "int") {
+            model := PortDll("libgtk-3.so.0", "gtk_tree_view_get_model", "ptr", widget, "ptr")
+            if model && PortDll("libgtk-3.so.0", "gtk_tree_model_get_n_columns", "ptr", model, "int") = columns
+                return widget
+            continue
+        }
+        if !PortDll("libgobject-2.0.so.0", "g_type_check_instance_is_a", "ptr", widget, "ptr", containerType, "int")
+            continue
+        children := PortDll("libgtk-3.so.0", "gtk_container_get_children", "ptr", widget, "ptr")
+        if !children
+            continue
+        node := children
+        while node {
+            child := NumGet(node, 0, "ptr")
+            node := NumGet(node, A_PtrSize, "ptr")
+            if child
+                queue.Push(child)
+        }
+        PortDll("libglib-2.0.so.0", "g_list_free", "ptr", children)
+    }
+    return 0
+}
+
+; GTK tree path ("top:child") of a tree item, or "" when it cannot be built.
+PortTreePath(tv, itemId) {
+    if !IsObject(tv)
+        return ""
+    parent := tv.GetParent(itemId)
+    if !parent {
+        topIdx := PortTreeIndex(tv, 0, itemId)
+        return topIdx = -1 ? "" : String(topIdx)
+    }
+    top := parent
+    while tv.GetParent(top)
+        top := tv.GetParent(top)
+    topIdx := PortTreeIndex(tv, 0, top)
+    childIdx := PortTreeIndex(tv, parent, itemId)
+    if topIdx = -1 || childIdx = -1
+        return ""
+    return topIdx ":" childIdx
+}
+
+; 0-based index of targetId among the children of parentId, or -1.
+PortTreeIndex(tv, parentId, targetId) {
+    id := tv.GetChild(parentId)
+    idx := 0
+    while id {
+        if id = targetId
+            return idx
+        id := tv.GetNext(id, "Next")
+        idx += 1
+    }
+    return -1
+}
+
+; Expands one item (Modify "Expand" is a no-op on the port).
+PortTreeExpandItem(tv, itemId) {
+    widget := PortTreeWidget(tv)
+    if !widget
+        return
+    pathStr := PortTreePath(tv, itemId)
+    if pathStr = ""
+        return
+    try {
+        path := PortDll("libgtk-3.so.0", "gtk_tree_path_new_from_string", "astr", pathStr, "ptr")
+        if !path
+            return
+        PortDll("libgtk-3.so.0", "gtk_tree_view_expand_row", "ptr", widget, "ptr", path, "int", 0)
+        PortDll("libgtk-3.so.0", "gtk_tree_path_free", "ptr", path)
+    } catch {
+    }
+}
+
+PortTreeExpandAll(tv) {
+    widget := PortTreeWidget(tv)
+    if !widget
+        return
+    try
+        PortDll("libgtk-3.so.0", "gtk_tree_view_expand_all", "ptr", widget)
+    catch {
+    }
+}
+
+; Selects one item (Modify "Select" is a no-op on the port).
+PortTreeSelectItem(tv, itemId) {
+    widget := PortTreeWidget(tv)
+    if !widget
+        return
+    pathStr := PortTreePath(tv, itemId)
+    if pathStr = ""
+        return
+    try {
+        path := PortDll("libgtk-3.so.0", "gtk_tree_path_new_from_string", "astr", pathStr, "ptr")
+        if !path
+            return
+        sel := PortDll("libgtk-3.so.0", "gtk_tree_view_get_selection", "ptr", widget, "ptr")
+        PortDll("libgtk-3.so.0", "gtk_tree_selection_select_path", "ptr", sel, "ptr", path)
+        PortDll("libgtk-3.so.0", "gtk_tree_view_set_cursor", "ptr", widget, "ptr", path, "ptr", 0, "int", 0)
+        PortDll("libgtk-3.so.0", "gtk_tree_view_scroll_to_cell", "ptr", widget, "ptr", path, "ptr", 0, "int", 0, "float", 0.5, "float", 0.0)
+        PortDll("libgtk-3.so.0", "gtk_tree_path_free", "ptr", path)
+    } catch {
+    }
+}
+
+; The port creates the tree text renderer editable and leaves the (empty)
+; column header visible, unlike its ListBox; turn both off.  GTK3 exposes
+; "editable" only as a GObject property (no setter symbol), so set it through
+; a GValue.
+PortDisableTreeEdit(tv) {
+    widget := PortTreeWidget(tv)
+    if !widget
+        return
+    try {
+        column := PortDll("libgtk-3.so.0", "gtk_tree_view_get_column", "ptr", widget, "int", 0, "ptr")
+        if !column
+            return
+        cells := PortDll("libgtk-3.so.0", "gtk_cell_layout_get_cells", "ptr", column, "ptr")
+        if !cells
+            return
+        renderer := PortDll("libglib-2.0.so.0", "g_list_nth_data", "ptr", cells, "UInt", 0, "ptr")
+        try PortDll("libglib-2.0.so.0", "g_list_free", "ptr", cells)
+        if !renderer
+            return
+        gval := Buffer(24, 0)
+        PortDll("libgobject-2.0.so.0", "g_value_init", "ptr", gval.Ptr, "ptr", 20, "ptr")  ; G_TYPE_BOOLEAN = 20
+        PortDll("libgobject-2.0.so.0", "g_value_set_boolean", "ptr", gval.Ptr, "int", 0)
+        PortDll("libgobject-2.0.so.0", "g_object_set_property", "ptr", renderer, "astr", "editable", "ptr", gval.Ptr)
+        PortDll("libgobject-2.0.so.0", "g_value_unset", "ptr", gval.Ptr)
+        ; The port forgets this for TreeView (it sets it for ListBox), leaving
+        ; an empty ~24px column header row above the first category.
+        PortDll("libgtk-3.so.0", "gtk_tree_view_set_headers_visible", "ptr", widget, "int", 0)
+    } catch {
+    }
+}
+
+; ---- Linux uinput injection -----------------------------------------------
+; The port only prefers its uinput lane when there is no X display, and XTEST
+; text injection requires the libei "remote interaction" consent (whose
+; session also captures the physical keyboard).  Instead the script owns a
+; virtual keyboard through /dev/uinput: kernel-level injection needs no
+; consent and delivers Enter like a real key.  Requires the one-time udev
+; rule documented in README.md; without it the script falls back to SendText.
+
+; Opens /dev/uinput and creates the virtual keyboard once per process.
+PortUinputAvailable() {
+    global UinputFd, UinputTried, UinputUsable
+    if UinputTried
+        return UinputUsable
+    UinputTried := true
+    try {
+        fd := PortDll("libc.so.6", "open", "astr", "/dev/uinput", "int", 0x801, "int", 0, "int")
+        if fd < 0
+            return false
+        ; EV_KEY plus every keycode (mirrors the port's device setup).
+        if PortDll("libc.so.6", "ioctl", "int", fd, "UInt", 0x40045564, "int", 1, "int") != 0
+            return false
+        Loop 0x2FE {
+            if PortDll("libc.so.6", "ioctl", "int", fd, "UInt", 0x40045565, "int", A_Index, "int") != 0
+                return false
+        }
+        ; EV_REL + REL_X/REL_Y: the shortcut can also move the pointer back
+        ; to where it was when the cheat window opened (see PortRestorePointer).
+        if PortDll("libc.so.6", "ioctl", "int", fd, "UInt", 0x40045564, "int", 2, "int") != 0
+            return false
+        Loop 2 {
+            if PortDll("libc.so.6", "ioctl", "int", fd, "UInt", 0x40045566, "int", A_Index - 1, "int") != 0
+                return false
+        }
+        ; struct uinput_setup { input_id id; char name[80]; __u32 ff_effects_max; }
+        setup := Buffer(92, 0)
+        NumPut("ushort", 3, setup, 0)        ; BUS_USB
+        NumPut("ushort", 0x2C2F, setup, 2)   ; vendor
+        NumPut("ushort", 0x0002, setup, 4)   ; product
+        NumPut("ushort", 1, setup, 6)        ; version
+        StrPut("BAR Cheat virtual keyboard", setup.Ptr + 8, 80, "UTF-8")
+        if PortDll("libc.so.6", "ioctl", "int", fd, "UInt", 0x405C5503, "ptr", setup.Ptr, "int") != 0
+            return false
+        if PortDll("libc.so.6", "ioctl", "int", fd, "UInt", 0x5501, "int") != 0
+            return false
+        UinputFd := fd
+        UinputUsable := true
+        Sleep(150)   ; let libinput/compositor register the device
+        return true
+    } catch {
+        return false
+    }
+}
+
+; Writes one input_event plus the SYN_REPORT frame terminator.
+PortUinputEvent(type, code, value) {
+    global UinputFd
+    evt := Buffer(24, 0)
+    NumPut("ushort", type, evt, 16)
+    NumPut("ushort", code, evt, 18)
+    NumPut("int", value, evt, 20)
+    written := PortDll("libc.so.6", "write", "int", UinputFd, "ptr", evt.Ptr, "UPtr", 24, "ptr")
+    if written != 24
+        return false
+    syn := Buffer(24, 0)   ; EV_SYN / SYN_REPORT / 0
+    written := PortDll("libc.so.6", "write", "int", UinputFd, "ptr", syn.Ptr, "UPtr", 24, "ptr")
+    return written = 24
+}
+
+; char -> {kc, shift} for the printable US-layout characters.
+PortUinputCharMap() {
+    static chars := 0
+    if IsObject(chars)
+        return chars
+    chars := Map()
+    lower := "abcdefghijklmnopqrstuvwxyz"
+    lowerKc := [30,48,46,32,18,33,34,35,23,36,37,38,50,49,24,25,16,19,31,20,22,47,17,45,21,44]
+    Loop Parse, lower
+        chars[A_LoopField] := {kc: lowerKc[A_Index], shift: false}
+    upper := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    Loop Parse, upper
+        chars[A_LoopField] := {kc: lowerKc[A_Index], shift: true}
+    digits := "1234567890"
+    digitKc := [2,3,4,5,6,7,8,9,10,11]
+    Loop Parse, digits
+        chars[A_LoopField] := {kc: digitKc[A_Index], shift: false}
+    shiftedDigits := "!@#$%^&*()"
+    Loop Parse, shiftedDigits
+        chars[A_LoopField] := {kc: digitKc[A_Index], shift: true}
+    unshifted := Map("-", 12, "=", 13, "[", 26, "]", 27, "\", 43, ";", 39, "'", 40, "``", 41, ",", 51, ".", 52, "/", 53, " ", 57)
+    for c, kc in unshifted
+        chars[c] := {kc: kc, shift: false}
+    shifted := Map("_", 12, "+", 13, "{", 26, "}", 27, "|", 43, ":", 39, "`"", 40, "~", 41, "<", 51, ">", 52, "?", 53)
+    for c, kc in shifted
+        chars[c] := {kc: kc, shift: true}
+    return chars
+}
+
+; Types text through the virtual keyboard.  Returns false when the lane is
+; unavailable or any character is unmapped (caller uses the XTEST fallback).
+PortUinputTypeText(text) {
+    if !PortUinputAvailable()
+        return false
+    chars := PortUinputCharMap()
+    for ch in StrSplit(text)
+        if !chars.Has(ch)
+            return false
+    for ch in StrSplit(text) {
+        info := chars[ch]
+        if info.shift
+            PortUinputEvent(1, 42, 1)   ; KEY_LEFTSHIFT down
+        ok := PortUinputEvent(1, info.kc, 1)
+        if PortUinputEvent(1, info.kc, 0) = false
+            ok := false
+        if info.shift
+            PortUinputEvent(1, 42, 0)
+        if !ok
+            return false
+        Sleep(8)
+    }
+    return true
+}
+
+PortUinputEnter() {
+    if !PortUinputAvailable()
+        return false
+    ok := PortUinputEvent(1, 28, 1)   ; KEY_ENTER
+    Sleep(30)
+    if PortUinputEvent(1, 28, 0) = false
+        ok := false
+    return ok
+}
+
+; Moves the pointer by a relative delta through the virtual pointer.
+PortUinputMoveBy(dx, dy) {
+    if !PortUinputAvailable()
+        return false
+    ok := PortUinputEvent(2, 0, dx)   ; EV_REL / REL_X
+    if PortUinputEvent(2, 1, dy) = false   ; EV_REL / REL_Y
+        ok := false
+    return ok
+}
+
+; Puts the pointer back where it was when the cheat window opened.  /give
+; spawns at the pointer, exactly like the Windows flow's MouseMove before the
+; final Enter.  XWarpPointer is a core X11 request (not XTEST), so it needs
+; no consent and works from a background client on XWayland.  Falls back to
+; the virtual pointer's relative motion when no X display is available.
+PortRestorePointer(targetX, targetY) {
+    try {
+        dpy := PortDll("libX11.so.6", "XOpenDisplay", "ptr", 0, "ptr")
+        if dpy {
+            root := PortDll("libX11.so.6", "XDefaultRootWindow", "ptr", dpy, "ptr")
+            PortDll("libX11.so.6", "XWarpPointer", "ptr", dpy, "ptr", 0, "ptr", root
+                , "int", 0, "int", 0, "UInt", 0, "UInt", 0, "int", targetX, "int", targetY, "int")
+            PortDll("libX11.so.6", "XFlush", "ptr", dpy, "int")
+            PortDll("libX11.so.6", "XCloseDisplay", "ptr", dpy, "int")
+            return true
+        }
+    } catch {
+    }
+    if !PortUinputAvailable()
+        return false
+    try
+        MouseGetPos(&cx, &cy)
+    catch
+        return false
+    return PortUinputMoveBy(targetX - cx, targetY - cy)
+}
+
 ShowGui() {
     global gGui, AmountBox, SearchBox, TabCtrl, FavList, FavSearchBox, RecentList, RecentSearchBox, MetaList, AmountGroup, FavBtn, HKBox, gStatus
     global TreeView, ImageViewer, RecentImg, FavImg, ImgToggleBtn
@@ -298,6 +768,15 @@ ShowGui() {
     global chkTopmost, chkRememberPos, chkDark
     global mouseX, mouseY, CheatCodesFile, RecentCheatsFile, TreeViewStateFile
     global cheatsData, unitsData, favData, recentData, favDisplay, favCheatData
+    global PortTreeWidgets, PortUiLastTab, PortUiLastRecent, PortUiLastFav, PortUiLastMeta
+
+    ; New controls get new handles: drop the cached GtkTreeView pointer and
+    ; force the list watch to re-sync on the first tick.
+    PortTreeWidgets := Map()
+    PortUiLastTab := -1
+    PortUiLastRecent := -1
+    PortUiLastFav := -1
+    PortUiLastMeta := -1
 
     ; Check if either file has been modified
     shouldReload := false
@@ -335,7 +814,7 @@ ShowGui() {
     topmost := Integer(GetSetting("AlwaysOnTop", 1))
 
     ; Create new GUI
-    gGui := Gui(topmost ? "+AlwaysOnTop +Owner" : "+Owner")
+    gGui := Gui(topmost ? "+AlwaysOnTop +Owner" : "+Owner", "BAR Cheat")
     gGui.Title := "BAR Cheat Codes"
     gGui.SetFont("s10" (dark ? " cE0E0E0" : " c000000"))
     if dark
@@ -354,11 +833,13 @@ ShowGui() {
 
     ; ---- Units tab (UseTab makes coords relative to the tab page) ----
     TabCtrl.UseTab(1)
-    gGui.Add("Text", "x16 y34 w60", "Search:")
-    SearchBox := gGui.Add("Edit", "x78 y32 w322 " lstOpt, "")
+    gGui.Add("Text", "x16 y48 w60", "Search:")
+    SearchBox := gGui.Add("Edit", "x78 y40 w322 h24 " lstOpt, "")
     SearchBox.OnEvent("Change", FilterTreeView)
 
-    TreeView := gGui.Add("TreeView", "x16 y56 w384 h204")
+    TreeView := gGui.Add("TreeView", "x16 y76 w384 h188")
+    if IsWslPort
+        PortDisableTreeEdit(TreeView)
     TreeView.OnEvent("DoubleClick", PasteSelectedCode)
     TreeView.OnEvent("ItemSelect", UpdateCheatAmount)
 
@@ -367,10 +848,10 @@ ShowGui() {
 
     ; ---- Recent tab ----
     TabCtrl.UseTab(2)
-    gGui.Add("Text", "x16 y34 w60", "Search:")
-    RecentSearchBox := gGui.Add("Edit", "x78 y32 w322 " lstOpt, "")
+    gGui.Add("Text", "x16 y48 w60", "Search:")
+    RecentSearchBox := gGui.Add("Edit", "x78 y40 w322 h24 " lstOpt, "")
     RecentSearchBox.OnEvent("Change", FilterRecentList)
-    RecentList := gGui.Add("ListBox", "x16 y56 w384 h204 " lstOpt)
+    RecentList := gGui.Add("ListBox", "x16 y76 w384 h188 " lstOpt)
     RecentList.OnEvent("DoubleClick", PasteSelectedCode)
     RecentList.OnEvent("Change", ListSelectionChanged)
     RecentImg := gGui.Add("Picture", "x80 y268 w256 h256 +Center")
@@ -378,10 +859,10 @@ ShowGui() {
 
     ; ---- Favorites tab ----
     TabCtrl.UseTab(3)
-    gGui.Add("Text", "x16 y34 w60", "Search:")
-    FavSearchBox := gGui.Add("Edit", "x78 y32 w322 " lstOpt, "")
+    gGui.Add("Text", "x16 y48 w60", "Search:")
+    FavSearchBox := gGui.Add("Edit", "x78 y40 w322 h24 " lstOpt, "")
     FavSearchBox.OnEvent("Change", FilterFavList)
-    FavList := gGui.Add("ListBox", "x16 y56 w384 h204 " lstOpt)
+    FavList := gGui.Add("ListBox", "x16 y76 w384 h188 " lstOpt)
     FavList.OnEvent("DoubleClick", PasteSelectedCode)
     FavList.OnEvent("Change", ListSelectionChanged)
     FavImg := gGui.Add("Picture", "x80 y268 w256 h256 +Center")
@@ -406,7 +887,7 @@ ShowGui() {
     chkTopmost.OnEvent("Click", PortClick(ApplyTopmostSetting))
 
     chkRememberPos := gGui.Add("CheckBox", "x16 y108 w384", "Remember window position")
-    chkRememberPos.Value := Integer(GetSetting("RememberPos", 0))
+    chkRememberPos.Value := Integer(GetSetting("RememberPos", 1))
     chkRememberPos.OnEvent("Click", PortClick(ApplyRememberPosSetting))
 
     chkDark := gGui.Add("CheckBox", "x16 y132 w384", "Dark mode (reopens the window)")
@@ -510,9 +991,14 @@ ShowGui() {
     ; Handle GUI close event
     gGui.OnEvent("Close", CloseGui)
 
+    ; The port has no global Escape grab (see the hotkey setup): close the
+    ; window through its own Escape event instead.
+    if IsWslPort
+        gGui.OnEvent("Escape", CloseGui)
+
     ; Show the window, restoring the saved position if enabled
     showOpts := "w424 h704"
-    if Integer(GetSetting("RememberPos", 0)) {
+    if Integer(GetSetting("RememberPos", 1)) {
         px := IniRead(ConfigFile, "WindowPos", "X", "")
         py := IniRead(ConfigFile, "WindowPos", "Y", "")
         if px != "" && py != "" {
@@ -531,6 +1017,10 @@ gGui.Show(showOpts)
 
     ; Set a timer to delay the selection and event trigger
     SetTimer(DelayedSelect, -100)
+
+    ; The port does not raise ListBox Change events; poll the lists instead
+    if IsWslPort
+        SetTimer(PortUiWatch, 150)
 }
 
 ; Dark-mode extras that can only be applied at runtime (most styling is
@@ -563,7 +1053,7 @@ ApplyImageState() {
         ImgToggleBtn.Text := show ? "Hide Img" : "Show Img"
     if !IsObject(TreeView)
         return
-    listH := show ? 204 : 474
+    listH := show ? 188 : 454
     for ctrl in [TreeView, RecentList, FavList]
         try ctrl.Move(, , , listH)
     for ctrl in [ImageViewer, RecentImg, FavImg]
@@ -644,8 +1134,13 @@ DelayedSelect() {
         if firstCategory {
             firstChild := TreeView.GetChild(firstCategory)
             if firstChild {
-                TreeView.Modify(firstCategory, "Expand")
-                TreeView.Modify(firstChild, "Select")
+                if IsWslPort {
+                    PortTreeExpandItem(TreeView, firstCategory)
+                    PortTreeSelectItem(TreeView, firstChild)
+                } else {
+                    TreeView.Modify(firstCategory, "Expand")
+                    TreeView.Modify(firstChild, "Select")
+                }
             }
         }
     }
@@ -661,9 +1156,14 @@ TabChanged(*) {
 
 UpdateAmountArea() {
     global TabCtrl, AmountBox, IncBtn, DecBtn, Btn1, Btn2, Btn5, Btn10, PasteBtn, FavBtn
-    dim := IsObject(TabCtrl) && TabCtrl.Value >= 4
-    for ctrl in [AmountBox, IncBtn, DecBtn, Btn1, Btn2, Btn5, Btn10, PasteBtn, FavBtn]
+    tab := IsObject(TabCtrl) ? TabCtrl.Value : 1
+    dim := tab >= 4
+    for ctrl in [AmountBox, IncBtn, DecBtn, Btn1, Btn2, Btn5, Btn10, FavBtn]
         ctrl.Enabled := !dim
+    ; Meta has no amount, but its commands must still be pasteable; only the
+    ; Settings tab has nothing to paste.
+    if IsObject(PasteBtn)
+        PasteBtn.Enabled := tab != 5
 }
 
 PopulateTreeView(TreeView, cheats, expand := false) {
@@ -721,13 +1221,19 @@ FilterTreeView(*) {
                 filtered[category] := matched
         }
         PopulateTreeView(TreeView, filtered, true)
+        ; The port ignores the "Expand" item option
+        if IsWslPort
+            PortTreeExpandAll(TreeView)
 
         ; Select the first match so Enter pastes it right away
         firstCategory := TreeView.GetChild(0)
         if firstCategory {
             firstMatch := TreeView.GetChild(firstCategory)
             if firstMatch {
-                TreeView.Modify(firstMatch, "Select")
+                if IsWslPort
+                    PortTreeSelectItem(TreeView, firstMatch)
+                else
+                    TreeView.Modify(firstMatch, "Select")
                 UpdateCheatAmount(firstMatch)
                 return
             }
@@ -801,7 +1307,10 @@ RestoreTreeViewState(tv, filePath) {
         itemText := tv.GetText(itemId)
         for expandedItem in expandedItems {
             if itemText = expandedItem {
-                tv.Modify(itemId, "Expand")
+                if IsWslPort
+                    PortTreeExpandItem(tv, itemId)
+                else
+                    tv.Modify(itemId, "Expand")
                 break
             }
         }
@@ -812,18 +1321,39 @@ RestoreTreeViewState(tv, filePath) {
     }
 
     ; Restore selection (fires ItemSelect -> status bar/amount update) and scroll
-    if selId
-        tv.Modify(selId, "Select")
+    if selId {
+        if IsWslPort
+            PortTreeSelectItem(tv, selId)
+        else
+            tv.Modify(selId, "Select")
+    }
     if topId
         try SendMessage(0x1114, 0, topId, tv)  ; TVM_ENSUREVISIBLE (guarded: SendMessage is flaky on the port)
 }
 
 SaveWindowPos() {
     global gGui, ConfigFile
-    if !IsObject(gGui) || !GetSetting("RememberPos", 0)
+    if !IsObject(gGui) || !GetSetting("RememberPos", 1)
         return
     try {
-        WinGetPos(&wx, &wy, , , "ahk_id " gGui.Hwnd)
+        if IsWslPort {
+            ; WinGetPos("ahk_id ...") is unreliable on the port (opaque
+            ; handles); read the real position from GTK.  Only while the
+            ; window is visible: GTK reports a stale position once it is
+            ; hidden (do a visible save in DoPaste before hiding).
+            win := PortFindWindow("BAR Cheat Codes")
+            if !win
+                return
+            gdkWin := PortDll("libgtk-3.so.0", "gtk_widget_get_window", "ptr", win, "ptr")
+            if !gdkWin || !PortDll("libgtk-3.so.0", "gdk_window_is_visible", "ptr", gdkWin, "int")
+                return
+            pos := Buffer(8, 0)
+            PortDll("libgtk-3.so.0", "gtk_window_get_position", "ptr", win, "ptr", pos.Ptr, "ptr", pos.Ptr + 4)
+            wx := NumGet(pos, 0, "int")
+            wy := NumGet(pos, 4, "int")
+        } else {
+            WinGetPos(&wx, &wy, , , "ahk_id " gGui.Hwnd)
+        }
         IniWrite(wx, ConfigFile, "WindowPos", "X")
         IniWrite(wy, ConfigFile, "WindowPos", "Y")
     }
@@ -837,6 +1367,10 @@ ForceActivateWindow(gui) {
     try
         WinActivate("ahk_id " gui.Hwnd)
     catch {
+        try
+            WinActivate("BAR Cheat")
+        catch {
+        }
     }
 
     ; Additional forced focus after a small delay
@@ -845,11 +1379,13 @@ ForceActivateWindow(gui) {
 
 FocusWindow(hwnd) {
     ; The window may have been closed before this timer fired
-    if WinExist("ahk_id " hwnd)
-        try
+    try {
+        if WinExist("ahk_id " hwnd)
             WinActivate("ahk_id " hwnd)
-        catch {
-        }
+        else
+            WinActivate("BAR Cheat")
+    } catch {
+    }
 }
 
 ; Returns the cheat code of the selected unit in the units tree,
@@ -1369,8 +1905,23 @@ DoPaste(cheatName, cheatCode) {
     global gGui, mouseX, mouseY
 
     ; Verify the game is running; only paste into Beyond All Reason
-    gameHwnd := FindGameWindow()
-    if !gameHwnd {
+    game := FindGameWindow()
+    if !game {
+        dbg := "[" A_Hour ":" A_Min ":" A_Sec "] FindGameWindow failed`n"
+        for crit in GameWinCriteria {
+            try
+                dbg .= "  crit='" crit "' hwnd=" (WinExist(crit) ? WinExist(crit) : 0) "`n"
+            catch as e
+                dbg .= "  crit='" crit "' THROW: " e.Message "`n"
+        }
+        try {
+            dbg .= "  WinGetList count=" WinGetList().Length "`n"
+            for w in WinGetList()
+                dbg .= "    win=" (WinGetTitle(w) ? WinGetTitle(w) : "<none>") "`n"
+        } catch as e {
+            dbg .= "  WinGetList THROW: " e.Message "`n"
+        }
+        FileAppend dbg, A_ScriptDir "/paste_dbg.log"
         TrayTip("Beyond All Reason window not found - cheat not pasted.", "BAR Cheat")
         CloseGui()
         return
@@ -1379,38 +1930,77 @@ DoPaste(cheatName, cheatCode) {
     ; Add to recent cheats
     AddToRecent(cheatName, cheatCode)
 
+    ; Backup: put the cheat code on the clipboard so it can be pasted manually
+    try
+        A_Clipboard := cheatCode
+    catch {
+    }
+
+    ; Remember the window position while it is still visible: GTK reports a
+    ; stale position once the window is hidden (see SaveWindowPos).
+    SaveWindowPos()
+
     ; Hide GUI
     gGui.Hide()
 
     ; Wait a moment before trying to activate game window
     Sleep(200)
 
-    ; Activate the game window
-    WinActivate(gameHwnd)
+    ; Activate the game window by window title (hwnd activation is unreliable on the Linux port)
+    try
+        WinActivate(game)
+    catch {
+    }
 
     ; Additional delay to ensure window activation
     Sleep(300)
 
-    ; Send Enter key to open the chat console
-    SendInput("{Enter}")
-    Sleep(50)
-
-    ; Send the cheat code in one shot
-    SendText(cheatCode)
-    Sleep(50)
-
-    ; Restore mouse position after delay
-    Sleep(300)
-    MouseMove(mouseX, mouseY)
-
-    Sleep(50)
-    SendInput("{Enter}")
-
+    ; Send the cheat code.
+    ; On the Linux port, prefer the script-owned uinput keyboard/pointer:
+    ; kernel-level injection needs no libei "remote interaction" consent and
+    ; delivers Enter, so the full auto-paste (Enter/text/Enter) works.  The
+    ; pointer is put back where it was when the cheat window opened because
+    ; /give spawns at the pointer (same as the Windows MouseMove below).
+    ; If /dev/uinput is not writable, fall back to XTEST text (console opened
+    ; manually, user presses Enter to submit).
+    ; Windows keeps the full auto-paste (Enter/text/Enter) flow.
+    if IsWslPort {
+        if PortUinputAvailable() {
+            PortUinputEnter()        ; open/focus the game console
+            Sleep(80)
+            PortUinputTypeText(cheatCode)
+            Sleep(80)
+            PortRestorePointer(mouseX, mouseY)
+            Sleep(50)
+            PortUinputEnter()        ; submit
+        } else {
+            SendText(cheatCode)
+            Sleep(300)
+        }
+    } else {
+        SendInput(EnterKey)
+        Sleep(50)
+        SendText(cheatCode)
+        Sleep(50)
+        Sleep(300)
+        MouseMove(mouseX, mouseY)
+        Sleep(50)
+        SendInput(EnterKey)
+    }
     CloseGui()
 }
 
 PasteSelectedCode(*) {
-    global TabCtrl, TreeView, TreeViewStateFile
+    global TabCtrl, TreeView, TreeViewStateFile, LastPasteFire
+
+    ; The port dispatches a list/tree double-click twice (widget button event
+    ; plus GTK row-activated); swallow the duplicate.  Windows fires once, so
+    ; this never triggers there.
+    if IsWslPort {
+        if A_TickCount - LastPasteFire < 350
+            return
+        LastPasteFire := A_TickCount
+    }
 
     ; Save the tree state before pasting
     SaveTreeViewState(TreeView, TreeViewStateFile, true)
@@ -1461,6 +2051,8 @@ PasteFavorite(*) {
 CloseGui(*) {
     global gGui, TreeView, TreeViewStateFile, TabCtrl, AmountBox
 
+    if IsWslPort
+        SetTimer(PortUiWatch, 0)
     if IsObject(gGui) {
         if IsObject(TabCtrl) {
             SetSetting("LastTab", TabCtrl.Value)

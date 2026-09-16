@@ -4,14 +4,6 @@ For Windows, I use Auto Hot Key to automate some tasks. Here are some of the scr
 
 ## Scripts
 
-### test1.ahk
-
-This script is used to test the functionality of Auto Hot Key. It opens a new notepad window and types "Hello World" in it.
-
-### guilist.ahk
-
-This script is used to automate the process of selecting a value from a list of values in a GUI window. It opens a GUI window with a list of values, and allows the user to select a value from the list.
-
 ### bar_cheat.ahk
 
 This script is used to automate the process of cheating in the "Beyond All Reason" game. It opens a GUI window with a treeview list of possible objects to create.
@@ -88,97 +80,102 @@ Game Commands
 
 ## Running on Linux
 
-`bar_cheat.ahk` is a single cross-platform source: the same file runs on
-Windows (official AutoHotkey v2) and on the [AutoHotkey v2 Linux port](https://github.com/MonoEven/Autohotkey_Linux)
-(v2.0.26-linux.23) with no edits. `LINUX-PORT.md` documents the small set of
-porting accommodations built into it.
+`bar_cheat.ahk` is a single cross-platform source: the same file runs on Windows
+(official AutoHotkey v2) and on the [AutoHotkey v2 Linux port](https://github.com/MonoEven/Autohotkey_Linux)
+(v2.0.26-linux.23) with no edits. On Linux it uses the port's **X11 backend**
+for the global hotkey and a `/dev/uinput` virtual keyboard to type and submit
+the cheat code. Technical internals, port quirks and debugging recipes live in
+[docs/linux-port-internals.md](docs/linux-port-internals.md).
 
-### 1. Install AutoHotkey for Linux
+### Fedora Silverblue (GNOME Wayland + Flatpak BAR) - recommended
 
-Download the package for your system from
-[GitHub Releases](https://github.com/MonoEven/Autohotkey_Linux/releases), then:
+Silverblue's root filesystem is immutable, so run AutoHotkey in a **distrobox**
+container instead of layering the RPM (a layer is dropped on the next rebase).
+The Flatpak BAR exposes only the X11 socket, and distrobox wires up the
+display, D-Bus and devices automatically.
 
-- **Debian / Ubuntu (including WSL2):**
-  ```bash
-  sudo apt install ./autohotkey-linux-2.0.26-linux.23-amd64.deb
-  ```
-- **Fedora:**
-  ```bash
-  sudo dnf install ./autohotkey-linux-2.0.26-linux.23-x86_64.rpm
-  ```
-- **Any Linux (no root; easiest for distrobox/Silverblue):** extract the generic
-  tarball and run its installer into `~/.local`:
-  ```bash
-  tar xf <tarball>
-  ./tools/linux/install.sh --prefix ~/.local --yes
-  export PATH="$HOME/.local/bin:$PATH"     # add to ~/.bashrc
-  ```
+1. Create the container (once):
+   ```bash
+   distrobox create --name ahk --image ubuntu:24.04
+   ```
 
-Verify the install and that the script parses:
+2. Install AutoHotkey inside it (once). Ubuntu 24.04 is required: Fedora 44's
+   libjpeg-turbo no longer ships `libjpeg.so.8`, which the AHK runtime needs.
+   ```bash
+   distrobox enter --name ahk
+   curl -fLO https://github.com/MonoEven/Autohotkey_Linux/releases/download/v2.0.26-linux.23/autohotkey-linux-2.0.26-linux.23-amd64.deb
+   sudo apt install ./autohotkey-linux-2.0.26-linux.23-amd64.deb
+   ahk --version          # then leave the container with: exit
+   ```
+
+3. Let the cheat type into the game (once, on the host). This makes
+   `/dev/uinput` writable, so pasting types the code and presses Enter with no
+   permission dialog:
+   ```bash
+   echo 'KERNEL=="uinput", MODE="0666"' | sudo tee /etc/udev/rules.d/60-ahk-uinput.rules
+   sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=uinput
+   ls -l /dev/uinput      # expect crw-rw-rw-
+   ```
+
+4. Run the cheat from the host:
+   ```bash
+   cd /path/to/AutoHotkey
+   ./run_bar_cheat_linux.sh
+   ```
+
+In the game, press **Alt+C** with the game focused, pick a cheat and press
+**Paste**: the code is typed into the console and submitted automatically. The
+launcher can be started from anywhere and uses the X11 backend by default.
+
+### Debian / Ubuntu (native)
 
 ```bash
-ahk --version
-ahk --check bar_cheat.ahk
-```
-
-### 2. Run the cheat
-
-```bash
+sudo apt install ./autohotkey-linux-2.0.26-linux.23-amd64.deb
 cd /path/to/AutoHotkey
-ahk bar_cheat.ahk
+./run_bar_cheat_linux.sh          # or: AHK_INPUT_BACKEND=x11 ahk bar_cheat.ahk
 ```
 
-The GUI, tabs, unit tree, preview images, favorites and recents behave the same
-as on Windows. State files (`bar_cheat.ini`, favorites, recents, tree state)
-are read/written in the script folder, so the folder must be writable.
+An Xorg session works out of the box. On Wayland the script uses the
+X11/XWayland lane (the Flatpak BAR already renders in XWayland).
 
-For startup diagnostics (parse/load errors), the script ships with a diagnostic
-build that auto-opens the GUI and writes `./wsl_dbg.log`:
+### Other Linux (tarball, no root)
+
+`libjpeg-turbo` 2.x/3.0.x is required (Fedora 44+ is not suitable):
 
 ```bash
-python3 gen_wsl.py      # regenerates bar_cheat_wsl.ahk from bar_cheat.ahk
-ahk bar_cheat_wsl.ahk
+tar xf <tarball>
+./tools/linux/install.sh --prefix ~/.local --yes
+export PATH="$HOME/.local/bin:$PATH"     # add to ~/.bashrc
 ```
 
-### 3. Input caveats (hotkey + typing into the game)
+### Notes & troubleshooting
 
-The **game-facing features need a real input backend**, which depends on where
-you run it:
+- **The one-time `/dev/uinput` rule matters.** Without it, pasting falls back to
+  XTEST text: a "remote interaction" Allow/Share dialog appears on first use,
+  and you must press Enter yourself to submit. `run_bar_cheat_linux.sh` prints
+  the rule whenever `/dev/uinput` is not writable.
+- **Normal Enter keeps working in other applications**: on Linux the script no
+  longer grabs Enter/Escape globally (the Enter grab exists only while the
+  cheat window is focused).
+- **Change the hotkey** by editing `Hotkey=` in `bar_cheat.ini` (for example
+  `^!c`); the port's Settings hotkey box is unreliable.
+- **Settings and state** (`bar_cheat.ini`, recents, favorites, tree state) live
+  in the script folder, which must be writable.
+- **Stock WSL2** can only preview the GUI (no input backend). Run
+  `bar_cheat_wsl.ahk` to auto-open it - see the internals doc.
+- **Diagnostics**: `distrobox enter ahk -- ahk --diag` reports the input
+  backend and whether `/dev/uinput` is writable.
 
-- **Stock WSL2:** there is no `/dev/uinput` and no X server input grab, so the
-  global **Alt+C** hotkey and `Send` into the game do **not** work. Use WSL2 to
-  test/preview the GUI (run `bar_cheat_wsl.ahk`; the GUI auto-opens).
-- **X11 / XWayland desktop session** (e.g. "GNOME on Xorg"): fully supported —
-  Alt+C and typing the paste work out of the box (XTEST backend).
-- **Native Wayland** (GNOME/KDE Wayland session): the global hotkey needs the
-  port's optional GNOME Shell extension or the XDG portal path, and `Send`
-  needs the libei consent flow (or the evdev/uinput daemon). See the port's
-  [docs](https://monoeven.github.io/Autohotkey_Linux/). The simplest reliable
-  lane today is an **Xorg session**.
 
-### 4. Fedora Silverblue
+## Other Test Scripts
 
-Silverblue's root filesystem is immutable, so **don't** `rpm-ostree`-layer the
-AHK RPM onto the host image (it pins a GUI runtime to the image, needs a reboot,
-and is dropped on the next rebase). Instead, run AHK in a **distrobox**
-container — mutable, and it wires up `$DISPLAY`/`$WAYLAND_DISPLAY`, XWayland,
-D-Bus and devices automatically:
+You can ignore these.
 
-```bash
-distrobox create --name ahk --image fedora:latest
-distrobox enter --name ahk
+### test1.ahk
 
-# inside the container:
-sudo dnf install ./autohotkey-linux-2.0.26-linux.23-x86_64.rpm   # or use the
-#   ~/.local tarball install from section 1 — either works
-ahk --version
+This script is used to test the functionality of Auto Hot Key. It opens a new notepad window and types "Hello World" in it.
 
-# your home directory (incl. this repo) is mounted inside the container:
-cd ~/Documents/AutoHotkey
-ahk bar_cheat.ahk
-```
+### guilist.ahk
 
-Needed only once (pod/image create); afterwards it starts with
-`distrobox enter --name ahk`. For the simplest input path on Silverblue choose
-an **Xorg session** ("GNOME on Xorg") at login rather than Wayland.
+This script is used to automate the process of selecting a value from a list of values in a GUI window. It opens a GUI window with a list of values, and allows the user to select a value from the list.
 
