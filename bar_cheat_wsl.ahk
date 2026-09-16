@@ -908,14 +908,15 @@ ShowGui() {
     ; Tab area holds only the lists; Amount/buttons are shared below it
     TabCtrl := gGui.Add("Tab3", "x8 y6 w408 h560", ["Units", "Recent", "Favorites", "Meta", "Settings"])
     TabCtrl.OnEvent("Change", TabChanged)
+    lay := GuiLayout()
 
     ; ---- Units tab (UseTab makes coords relative to the tab page) ----
     TabCtrl.UseTab(1)
-    gGui.Add("Text", "x16 y48 w60", "Search:")
-    SearchBox := gGui.Add("Edit", "x78 y40 w322 h24 " lstOpt, "")
+    gGui.Add("Text", "x16 y" lay.labelY " w60", "Search:")
+    SearchBox := gGui.Add("Edit", "x78 y" lay.editY " w322 h24 " lstOpt, "")
     SearchBox.OnEvent("Change", FilterTreeView)
 
-    TreeView := gGui.Add("TreeView", "x16 y76 w384 h188")
+    TreeView := gGui.Add("TreeView", "x16 y" lay.listY " w384 h" lay.listH)
     if IsWslPort
         PortDisableTreeEdit(TreeView)
     TreeView.OnEvent("DoubleClick", PasteSelectedCode)
@@ -926,10 +927,10 @@ ShowGui() {
 
     ; ---- Recent tab ----
     TabCtrl.UseTab(2)
-    gGui.Add("Text", "x16 y48 w60", "Search:")
-    RecentSearchBox := gGui.Add("Edit", "x78 y40 w322 h24 " lstOpt, "")
+    gGui.Add("Text", "x16 y" lay.labelY " w60", "Search:")
+    RecentSearchBox := gGui.Add("Edit", "x78 y" lay.editY " w322 h24 " lstOpt, "")
     RecentSearchBox.OnEvent("Change", FilterRecentList)
-    RecentList := gGui.Add("ListBox", "x16 y76 w384 h188 " lstOpt)
+    RecentList := gGui.Add("ListBox", "x16 y" lay.listY " w384 h" lay.listH " " lstOpt)
     RecentList.OnEvent("DoubleClick", PasteSelectedCode)
     RecentList.OnEvent("Change", ListSelectionChanged)
     RecentImg := gGui.Add("Picture", "x80 y268 w256 h256 +Center")
@@ -937,10 +938,10 @@ ShowGui() {
 
     ; ---- Favorites tab ----
     TabCtrl.UseTab(3)
-    gGui.Add("Text", "x16 y48 w60", "Search:")
-    FavSearchBox := gGui.Add("Edit", "x78 y40 w322 h24 " lstOpt, "")
+    gGui.Add("Text", "x16 y" lay.labelY " w60", "Search:")
+    FavSearchBox := gGui.Add("Edit", "x78 y" lay.editY " w322 h24 " lstOpt, "")
     FavSearchBox.OnEvent("Change", FilterFavList)
-    FavList := gGui.Add("ListBox", "x16 y76 w384 h188 " lstOpt)
+    FavList := gGui.Add("ListBox", "x16 y" lay.listY " w384 h" lay.listH " " lstOpt)
     FavList.OnEvent("DoubleClick", PasteSelectedCode)
     FavList.OnEvent("Change", ListSelectionChanged)
     FavImg := gGui.Add("Picture", "x80 y268 w256 h256 +Center")
@@ -1122,6 +1123,16 @@ ApplyDarkControls() {
     TreeView.Redraw()
 }
 
+; Search/list coordinates differ per platform: the port's single-line Edit is
+; ~34px tall (`h24` is ignored) and its tab content starts lower, so the
+; original Windows coordinates overlap there.  Windows keeps the tight layout.
+GuiLayout() {
+    global IsWslPort
+    if IsWslPort
+        return {labelY: 48, editY: 40, listY: 76, listH: 188, listHExp: 454}
+    return {labelY: 34, editY: 32, listY: 56, listH: 204, listHExp: 474}
+}
+
 ; Collapses/expands the image preview on the Units, Recent and Favorites
 ; tabs; the lists grow/shrink to use the freed space. Persisted in the ini.
 ApplyImageState() {
@@ -1131,7 +1142,8 @@ ApplyImageState() {
         ImgToggleBtn.Text := show ? "Hide Img" : "Show Img"
     if !IsObject(TreeView)
         return
-    listH := show ? 188 : 454
+    lay := GuiLayout()
+    listH := show ? lay.listH : lay.listHExp
     for ctrl in [TreeView, RecentList, FavList]
         try ctrl.Move(, , , listH)
     for ctrl in [ImageViewer, RecentImg, FavImg]
