@@ -27,7 +27,7 @@ Do not duplicate the sections here into the README; link instead.
   Fedora 44's libjpeg-turbo 3.1+ no longer ships (no compat package), so the
   RPM/tarball fail on the host with `ahk_core: error while loading shared
   libraries: libjpeg.so.8`. Never `rpm-ostree`-layer AHK onto Silverblue.
-- **Launcher**: `run_bar_cheat_linux.sh` runs
+- **Launcher**: `run_bar_cheat_distrobox.sh` runs
   `distrobox enter --name ahk -- bash -lc "cd ~/AutoHotkey && AHK_INPUT_BACKEND=$BACKEND ahk bar_cheat.ahk"`.
   `AHK_BACKEND` overrides the default `x11`; it also prints the `/dev/uinput`
   udev rule when the device is not writable.
@@ -68,13 +68,11 @@ gated by `IsWslPort`.
   }
   ```
 
-- **Generated artifacts** (do not hand-edit):
+- **Generated artifact** (do not hand-edit):
   - `bar_cheat_wsl.ahk` — diagnostic build produced by `python3 gen_wsl.py`.
     It injects `#Warn All, Off`, an `OnError` logger to `wsl_dbg.log`, a
     startup census (categories/recents/favorites counts) and a timer that
     auto-opens the GUI. Used for headless/UI inspection.
-  - `bar_cheat_linux.ahk` — byte-identical copy of `bar_cheat.ahk` (keep in
-    sync with `cp` + `diff -q`).
 - **State files** — `bar_cheat.ini`, `bar_cheats_recent.txt`,
   `bar_cheats_favorites.txt`, `bar_treeview_state.txt` are written next to the
   script (gitignored).
@@ -175,7 +173,7 @@ sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=uinput
 ls -l /dev/uinput      # expect crw-rw-rw-
 ```
 
-- `run_bar_cheat_linux.sh` prints exactly this when `/dev/uinput` is not
+- `run_bar_cheat_distrobox.sh` prints exactly this when `/dev/uinput` is not
   writable.
 - Verification performed on the real session: the virtual device typed a full
   string (upper/lowercase, digits, `/`, spaces) into a focused GTK entry,
@@ -281,9 +279,8 @@ Pitfalls:
 | Path | Purpose |
 |---|---|
 | `bar_cheat.ahk` | single source (Windows + Linux) |
-| `bar_cheat_linux.ahk` | byte-identical copy for branch checkouts |
 | `bar_cheat_wsl.ahk` | generated diagnostic build (`gen_wsl.py`) |
-| `run_bar_cheat_linux.sh` | host launcher (distrobox, x11 backend, uinput hint) |
+| `run_bar_cheat_distrobox.sh` | host launcher (distrobox, x11 backend, uinput hint) |
 | `gen_wsl.py` | injects OnError logger + startup census + auto-open GUI |
 | `bar_cheats.txt`, `bar_cheats_recent.txt`, `bar_cheats_favorites.txt` | data (recents/favorites gitignored) |
 | `bar_cheat.ini`, `bar_treeview_state.txt` | settings/state (gitignored) |
@@ -358,4 +355,4 @@ Port source files worth reading when something breaks
   (`DoPaste`, `UpdateAmountArea`, layout constants, `SaveWindowPos`) are edited
   in place — re-run a quick pass on Windows after changes.
 - **Regenerate artifacts** after any `bar_cheat.ahk` edit:
-  `cp bar_cheat.ahk bar_cheat_linux.ahk && python3 gen_wsl.py`.
+  `python3 gen_wsl.py`.

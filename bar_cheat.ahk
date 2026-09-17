@@ -82,6 +82,7 @@ global recentDisplay := []
 global ConfigFile := A_ScriptDir "/bar_cheat.ini"
 global GameWinCriteria := ["ahk_exe spring.exe", "Beyond All Reason"]
 global CurrentHotkey := ""
+global AppVersion := "1.0.0"
 
 ; Returns the window title/criteria of the game window, or 0 if not found.
 ; (WinTitle strings work on Windows and the Linux port; raw hwnds and
@@ -896,6 +897,10 @@ ShowGui() {
     chkDark.OnEvent("Click", PortClick(ApplyDarkModeSetting))
 
     gGui.Add("Text", "x16 y156 w384", "Settings are saved to bar_cheat.ini in the script folder.")
+
+    AboutGroup := gGui.Add("GroupBox", "x16 y190 w384 h72 " gbOpt, "About")
+    gGui.Add("Text", "x28 y212 w360", "BAR Cheat  v" AppVersion)
+    gGui.Add("Text", "x28 y234 w360", "AutoHotkey v2 GUI for Beyond All Reason cheats.")
 
     ; Stop associating controls with the tab pages
     TabCtrl.UseTab()

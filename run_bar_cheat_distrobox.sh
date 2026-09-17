@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-# Run the BAR cheat helper on Fedora Silverblue (GNOME Wayland).
+# Run the BAR cheat helper inside a distrobox container. Intended for immutable
+# (atomic) distros such as Fedora Silverblue, where the root filesystem is
+# read-only; tested on Fedora Silverblue 44 / GNOME Wayland. On native
+# Debian/Ubuntu or WSL, run the script directly instead (see README).
 #
 # Input backend can be chosen via AHK_BACKEND (default: x11, where Alt+C is
 # grabbed reliably on Fedora/GNOME; the portal lane drops Alt+C when no
@@ -7,6 +10,16 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 BACKEND="${AHK_BACKEND:-x11}"
+
+if ! command -v distrobox >/dev/null 2>&1; then
+    cat >&2 <<'EOF'
+error: distrobox not found. This launcher is for distrobox-based setups
+       (e.g. Fedora Silverblue). On native Debian/Ubuntu or WSL, run directly:
+         AHK_INPUT_BACKEND=x11 ahk bar_cheat.ahk
+       To preview the GUI on WSL, use bar_cheat_wsl.ahk (see README).
+EOF
+    exit 1
+fi
 
 # uinput gives dialog-free auto-typing and auto-submit (no XTEST/libei consent)
 if [ ! -w /dev/uinput ]; then

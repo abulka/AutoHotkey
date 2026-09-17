@@ -87,12 +87,15 @@ for the global hotkey and a `/dev/uinput` virtual keyboard to type and submit
 the cheat code. Technical internals, port quirks and debugging recipes live in
 [docs/linux-port-internals.md](docs/linux-port-internals.md).
 
-### Fedora Silverblue (GNOME Wayland + Flatpak BAR) - recommended
+### Distrobox (immutable distros, e.g. Fedora Silverblue)
 
-Silverblue's root filesystem is immutable, so run AutoHotkey in a **distrobox**
-container instead of layering the RPM (a layer is dropped on the next rebase).
-The Flatpak BAR exposes only the X11 socket, and distrobox wires up the
-display, D-Bus and devices automatically.
+On immutable (atomic) distros such as Fedora Silverblue the root filesystem is
+read-only, so run AutoHotkey in a **distrobox** container instead of layering
+the package (a layer is dropped on the next rebase). The steps below were
+tested on **Fedora Silverblue 44 / GNOME Wayland with Flatpak BAR**; other
+distrobox hosts work too, adjusting the Flatpak/display notes as needed. The
+Flatpak BAR exposes only the X11 socket, and distrobox wires up the display,
+D-Bus and devices automatically.
 
 1. Create the container (once):
    ```bash
@@ -120,23 +123,81 @@ display, D-Bus and devices automatically.
 4. Run the cheat from the host:
    ```bash
    cd /path/to/AutoHotkey
-   ./run_bar_cheat_linux.sh
+   ./run_bar_cheat_distrobox.sh
    ```
 
 In the game, press **Alt+C** with the game focused, pick a cheat and press
 **Paste**: the code is typed into the console and submitted automatically. The
 launcher can be started from anywhere and uses the X11 backend by default.
 
-### Debian / Ubuntu (native)
+#### Starting the cheat (after the one-time setup)
+
+The four steps above are one-time. To actually use the cheat, just run the
+launcher from the repo:
 
 ```bash
-sudo apt install ./autohotkey-linux-2.0.26-linux.23-amd64.deb
 cd /path/to/AutoHotkey
-./run_bar_cheat_linux.sh          # or: AHK_INPUT_BACKEND=x11 ahk bar_cheat.ahk
+./run_bar_cheat_distrobox.sh
+```
+
+That wrapper enters the `ahk` container and starts the script for you. If you
+prefer to do it by hand, the equivalent is:
+
+```bash
+distrobox enter --name ahk
+cd ~/AutoHotkey                    # adjust if your checkout is elsewhere
+AHK_INPUT_BACKEND=x11 ahk bar_cheat.ahk
+```
+
+Then press **Alt+C** with the game focused to open the cheat window.
+
+### Debian / Ubuntu (native)
+
+Download the AutoHotkey v2 Linux port `.deb` from the
+[releases page](https://github.com/MonoEven/Autohotkey_Linux/releases) (or use
+the pinned version below) and install it:
+
+```bash
+curl -fLO https://github.com/MonoEven/Autohotkey_Linux/releases/download/v2.0.26-linux.23/autohotkey-linux-2.0.26-linux.23-amd64.deb
+sudo apt install ./autohotkey-linux-2.0.26-linux.23-amd64.deb
+ahk --version
+```
+
+Then run the script directly (the `run_bar_cheat_distrobox.sh` launcher in the
+Distrobox section is only for distrobox-based setups):
+
+```bash
+cd /path/to/AutoHotkey
+AHK_INPUT_BACKEND=x11 ahk bar_cheat.ahk
 ```
 
 An Xorg session works out of the box. On Wayland the script uses the
 X11/XWayland lane (the Flatpak BAR already renders in XWayland).
+
+### Windows Subsystem for Linux (WSL2) - testing only
+
+WSL2 is intended mainly for **testing the GUI** (tabs, layout, images) during
+development. WSLg provides an X display so the GTK window opens, but stock WSL2
+has no usable input backend: the global Alt+C hotkey is not delivered to the
+script, so `bar_cheat.ahk` just sits there with no window (the terminal swallows
+Alt+C as `^[c`). This is not a supported way to cheat in a real game.
+
+Install AutoHotkey with the Debian/Ubuntu steps above, then generate and run the
+diagnostic build, which auto-opens the GUI about a second after start and writes
+a `wsl_dbg.log` census next to the script:
+
+```bash
+cd /path/to/AutoHotkey
+python3 gen_wsl.py
+AHK_INPUT_BACKEND=x11 ahk bar_cheat_wsl.ahk
+```
+
+Do **not** use `run_bar_cheat_distrobox.sh` here: it is specific to
+distrobox-based setups (immutable distros) and fails with
+`distrobox: command not found` elsewhere.
+
+See [docs/linux-port-internals.md](docs/linux-port-internals.md) for the WSL
+debugging recipes.
 
 ### Other Linux (tarball, no root)
 
@@ -152,8 +213,8 @@ export PATH="$HOME/.local/bin:$PATH"     # add to ~/.bashrc
 
 - **The one-time `/dev/uinput` rule matters.** Without it, pasting falls back to
   XTEST text: a "remote interaction" Allow/Share dialog appears on first use,
-  and you must press Enter yourself to submit. `run_bar_cheat_linux.sh` prints
-  the rule whenever `/dev/uinput` is not writable.
+  and you must press Enter yourself to submit. `run_bar_cheat_distrobox.sh`
+  prints the rule whenever `/dev/uinput` is not writable.
 - **Normal Enter keeps working in other applications**: on Linux the script no
   longer grabs Enter/Escape globally (the Enter grab exists only while the
   cheat window is focused).
@@ -161,8 +222,9 @@ export PATH="$HOME/.local/bin:$PATH"     # add to ~/.bashrc
   `^!c`); the port's Settings hotkey box is unreliable.
 - **Settings and state** (`bar_cheat.ini`, recents, favorites, tree state) live
   in the script folder, which must be writable.
-- **Stock WSL2** can only preview the GUI (no input backend). Run
-  `bar_cheat_wsl.ahk` to auto-open it - see the internals doc.
+- **Stock WSL2** can only preview the GUI (no input backend); run
+  `bar_cheat_wsl.ahk` to auto-open it - see the WSL2 section above and the
+  internals doc.
 - **Diagnostics**: `distrobox enter ahk -- ahk --diag` reports the input
   backend and whether `/dev/uinput` is writable.
 
