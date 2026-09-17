@@ -12,17 +12,29 @@ This script is used to automate the process of cheating in the "Beyond All Reaso
 
 - [AutoHotkey v2.0](https://www.autohotkey.com/) installed
 
-#### How to Run
+#### Running cheats manually (background)
 
-1. Double-click `bar_cheat.ahk` (or right-click it and choose "Run Script"). This runs the script in the background with no visible window.
-2. In the game, press **Enter** to open the chat/console window. This is required — the script types the cheat code into it.
-3. With the game running, press the hotkey (default **Alt+C**, configurable via `bar_cheat.ini`, see Notes) to open the cheat code GUI.
-4. Optionally type in the **Search** box to filter the tree as you type (e.g. "big berth"). With matches shown, Enter pastes the first match.
-5. Select a cheat from the treeview, adjust the amount if needed, then press **Enter** (or click "Paste Code" / double-click the entry). The GUI closes and the cheat command is typed into the game's chat and submitted.
+In *Beyond All Reason*, cheats are normally typed by hand:
+
+1. Press **Enter** in-game to open the console.
+2. Run `/cheat` and press **Enter** once to enable cheat mode (the host must do this).
+3. Enter a cheat and press **Enter** — e.g. `/give 10 armck 0` to spawn units, or `/godmode` for a command.
+
+Units are spawned at the position of your **last mouse click** in the game, so click where you want them first.
+
+#### How to Run (this script)
+
+The script automates the whole Enter → cheat code → Enter sequence:
+
+1. Double-click `bar_cheat.ahk` (or right-click it and choose "Run Script"). It runs in the background with no visible window.
+2. With the game running, press the hotkey (default **Alt+C**, configurable via `bar_cheat.ini`, see Notes) to open the cheat GUI.
+3. Switch to the **Meta** tab and double-click **Cheat ON** — this runs `/cheat` and enables cheat mode for you.
+4. Switch to the **Units**, **Recent** or **Favorites** tab, adjust the amount if needed, then double-click an entry (or press **Enter** / click "Paste Code"). The script opens the console, types the cheat code and presses Enter — the Enter → cheat → Enter sequence is done for you.
+5. Optionally type in the **Search** box to filter the tree as you type (e.g. "big berth"). With matches shown, Enter pastes the first match.
 6. Press **Escape** in the GUI to close it without pasting.
 7. Stop the script by right-clicking the green AutoHotkey "H" icon in the system tray and choosing "Exit".
 
-Important: cheating requires the game to have cheats enabled — the host must run `/cheat` first (there's a "Cheat ON" entry in the Game Commands category).
+Press **Alt+C** again any time to reopen the GUI and spawn more units.
 
 Notes:
 
