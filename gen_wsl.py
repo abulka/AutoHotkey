@@ -14,7 +14,7 @@ LogWslError(e, mode) {
     return true
 }
 DbgStartup() {
-    global unitsData, favData, favCheatData, recentData, TreeView, RecentList, FavList, MetaList
+    global unitsData, favData, recentData, TreeView, RecentList, FavList, MetaList
     global CheatCodesFile, RecentCheatsFile, FavoritesFile
     DbgLog("=== census ===")
     DbgLog("A_ScriptDir=" A_ScriptDir)
@@ -48,7 +48,6 @@ DbgStartup() {
     }
     try {
         DbgLog("favData=" (IsObject(favData) ? favData.Length : "n/a")
-               "  favCheatData=" (IsObject(favCheatData) ? favCheatData.Length : "n/a")
                "  recentData=" (IsObject(recentData) ? recentData.Length : "n/a"))
     } catch as x {
         DbgLog("census data failed: " x.Message)

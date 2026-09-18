@@ -64,6 +64,8 @@ global LastModified := ""
 global RecentCheatsFile := A_ScriptDir "/bar_cheats_recent.txt"
 global LastModifiedRecent := ""
 global FavoritesFile := A_ScriptDir "/bar_cheats_favorites.txt"
+global ReadmeFile := A_ScriptDir "/README.md"
+global LastModifiedReadme := ""
 global TreeView := ""
 global TreeViewStateFile := A_ScriptDir "/bar_treeview_state.txt"
 global ImageViewer := ""
@@ -78,7 +80,6 @@ global FactionBox := ""
 global TeamBox := ""
 global favData := []
 global favDisplay := []
-global favCheatData := []
 global favNameSet := Map()
 global metaListData := []
 global recentData := []
@@ -134,6 +135,9 @@ if IsWslPort {
 
 ; Set up the configurable hotkey (default Alt+C, see bar_cheat.ini)
 SetupHotkey()
+
+; Show the cheat window once when the script starts (hotkey still works after)
+SetTimer(ShowGui, -600)
 
 ; Registers the show-window hotkey, disabling the previous one.
 ; Returns true on success. Hotkey callbacks must accept the hotkey
@@ -350,6 +354,61 @@ FactionTag(cheatCode) {
 ; Per-faction tree expand/selection state file.
 FactionStateFile(faction) {
     return A_ScriptDir "/bar_treeview_state_" (faction = "Cortex" ? "cortex" : "armada") ".txt"
+}
+
+; ---- Settings help (renders README.md as readable plain text) ----
+
+; Light markdown cleanup: fenced code kept verbatim (indented), headings
+; de-hashed, bullets turned into dots, inline markup and links flattened.
+StripMarkdown(text) {
+    out := ""
+    inFence := false
+    bt := Chr(96)
+    Loop Parse, text, "`n", "`r" {
+        line := A_LoopField
+        if SubStr(Trim(line), 1, 3) = bt bt bt {
+            inFence := !inFence
+            continue
+        }
+        if inFence {
+            out .= "    " line "`n"
+            continue
+        }
+        if RegExMatch(line, "^\s*(#{1,6})\s*(.*)$", &m) {
+            heading := StrLen(m[1]) <= 2 ? StrUpper(m[2]) : m[2]
+            if Trim(out) != ""
+                out .= "`n"
+            out .= heading "`n"
+            continue
+        }
+        line := RegExReplace(line, "^(\s*)[-*]\s+", "$1" Chr(0x2022) " ")
+        line := RegExReplace(line, "\*\*(.+?)\*\*", "$1")
+        line := RegExReplace(line, bt "([^" bt "]+)" bt, "$1")
+        line := RegExReplace(line, "\[([^\]]+)\]\(([^)]+)\)", "$1 ($2)")
+        out .= line "`n"
+    }
+    return out
+}
+
+LoadReadmeHelp() {
+    global ReadmeFile, LastModifiedReadme
+    if !FileExist(ReadmeFile)
+        return "README.md was not found next to the script."
+    LastModifiedReadme := FileGetTime(ReadmeFile)
+    try
+        return StripMarkdown(FileRead(ReadmeFile, "UTF-8"))
+    catch
+        return "Could not read README.md."
+}
+
+OpenReadme(*) {
+    global ReadmeFile
+    if !FileExist(ReadmeFile)
+        return
+    try
+        Run(ReadmeFile)
+    catch
+        try Run('notepad.exe "' ReadmeFile '"')
 }
 
 LoadFavorites() {
@@ -831,7 +890,8 @@ ShowGui() {
     global IncBtn, DecBtn, Btn1, Btn2, Btn5, Btn10, PasteBtn, CloseBtn, RemoveFavBtn, RemoveRecentBtn
     global chkTopmost, chkRememberPos, chkDark
     global mouseX, mouseY, CheatCodesFile, RecentCheatsFile, TreeViewStateFile
-    global cheatsData, unitsData, favData, recentData, favDisplay, favCheatData
+    global ReadmeFile, LastModifiedReadme
+    global cheatsData, unitsData, favData, recentData, favDisplay
     global FactionBox, TeamBox, unitsDataByFaction, ActiveFaction
     global PortTreeWidgets, PortUiLastTab, PortUiLastRecent, PortUiLastFav, PortUiLastMeta
 
@@ -852,6 +912,10 @@ ShowGui() {
     if FileExist(RecentCheatsFile) {
         currentModifiedRecent := FileGetTime(RecentCheatsFile)
         shouldReload := shouldReload || currentModifiedRecent != LastModifiedRecent
+    }
+    if FileExist(ReadmeFile) {
+        currentModifiedReadme := FileGetTime(ReadmeFile)
+        shouldReload := shouldReload || currentModifiedReadme != LastModifiedReadme
     }
 
     ; Capture current mouse position
@@ -972,9 +1036,22 @@ ShowGui() {
 
     gGui.Add("Text", "x16 y156 w384", "Settings are saved to bar_cheat.ini in the script folder.")
 
-    AboutGroup := gGui.Add("GroupBox", "x16 y190 w384 h72 " gbOpt, "About")
+    AboutGroup := gGui.Add("GroupBox", "x16 y190 w384 h90 " gbOpt, "About")
     gGui.Add("Text", "x28 y212 w360", "BAR Cheat  v" AppVersion)
     gGui.Add("Text", "x28 y234 w360", "AutoHotkey v2 GUI for Beyond All Reason cheats.")
+    if IsWslPort
+        gGui.Add("Text", "x28 y256 w360", "(c) 2026 Andy Bulka  -  abulka.github.io")
+    else
+        gGui.Add("Link", "x28 y256 w360", '(c) 2026 Andy Bulka  -  <a href="https://abulka.github.io">abulka.github.io</a>')
+
+    HelpGroup := gGui.Add("GroupBox", "x16 y292 w384 h264 " gbOpt, "Help - README")
+    HelpBox := gGui.Add("Edit", "x24 y314 w368 h204 +ReadOnly +VScroll " lstOpt, LoadReadmeHelp())
+    if IsWslPort
+        gGui.Add("Text", "x24 y524 w368", "README.md is in the script folder.")
+    else {
+        HelpLink := gGui.Add("Link", "x24 y524 w368", '<a id="openreadme">Open README.md</a>')
+        HelpLink.OnEvent("Click", OpenReadme)
+    }
 
     ; Stop associating controls with the tab pages
     TabCtrl.UseTab()
@@ -1026,13 +1103,10 @@ ShowGui() {
     RebuildFavoriteNames()
 
     ; Split the parsed categories into per-tab datasets:
-    ; "Fav *" -> favorites, "Cheat" -> meta list, faction-tagged -> units tree
-    cheatsData := Map(), unitsDataByFaction := Map(), favCheatData := []
+    ; "Cheat" -> meta list, faction-tagged categories -> the units tree
+    cheatsData := Map(), unitsDataByFaction := Map()
     for category, cheatList in LoadCheatCodes() {
-        if InStr(category, "Fav") = 1 {
-            for cheat in cheatList
-                favCheatData.Push({name: cheat.name, code: cheat.code})
-        } else if InStr(category, "Cheat") {
+        if InStr(category, "Cheat") {
             cheatsData[category] := cheatList
         } else {
             faction := FactionFromCategory(category)
@@ -1765,14 +1839,12 @@ SetAmount(amount) {
 
 ; ---- Favorites ----
 
-; Rebuilds the set of favorite names (starred + "Fav *" categories).
+; Rebuilds the set of favorite identities from the starred favorites file.
 RebuildFavoriteNames() {
-    global favData, favCheatData, favNameSet
+    global favData, favNameSet
     favNameSet := Map()
-    for src in [favData, favCheatData] {
-        for fav in src
-            favNameSet[FavKey(fav.name, fav.code)] := true
-    }
+    for fav in favData
+        favNameSet[FavKey(fav.name, fav.code)] := true
 }
 
 ; Strips the favorite marker from a display name.
@@ -1792,19 +1864,17 @@ FavMark(name, code := "") {
     return IsFavorite(name, code) ? "★ " name : name
 }
 
-; Builds the combined favorites list: starred favorites plus all entries
-; from "Fav *" categories in bar_cheats.txt, deduplicated by unit code.
+; Builds the favorites list from the starred favorites file, deduplicated by
+; unit code (otherwise by name for meta cheats).
 GetFavoriteDisplayList() {
-    global favData, favCheatData
+    global favData
     list := []
     seen := Map()
-    for src in [favData, favCheatData] {
-        for fav in src {
-            key := FavKey(fav.name, fav.code)
-            if !seen.Has(key) {
-                seen[key] := true
-                list.Push({name: fav.name, code: fav.code})
-            }
+    for fav in favData {
+        key := FavKey(fav.name, fav.code)
+        if !seen.Has(key) {
+            seen[key] := true
+            list.Push({name: fav.name, code: fav.code})
         }
     }
     return list
@@ -1894,6 +1964,21 @@ ToggleFavorite(*) {
 ; Adds/removes a favorite by unit code (falling back to name for meta cheats);
 ; returns the new starred state.
 ToggleByName(name, code) {
+    global favData, favNameSet
+    key := FavKey(name, code)
+    if IsObject(favNameSet) && favNameSet.Has(key) {
+        RemoveFavoriteEntry(name, code)
+        return false
+    }
+    favData.InsertAt(1, {name: name, code: ApplyAmount(code)})
+    SaveFavorites(favData)
+    RebuildFavoriteNames()
+    return true
+}
+
+; Removes a favorite from bar_cheats_favorites.txt and the in-memory list.
+; Returns true if it was actually present.
+RemoveFavoriteEntry(name, code) {
     global favData
     key := FavKey(name, code)
     for i, fav in favData {
@@ -1901,13 +1986,10 @@ ToggleByName(name, code) {
             favData.RemoveAt(i)
             SaveFavorites(favData)
             RebuildFavoriteNames()
-            return false
+            return true
         }
     }
-    favData.InsertAt(1, {name: name, code: ApplyAmount(code)})
-    SaveFavorites(favData)
-    RebuildFavoriteNames()
-    return true
+    return false
 }
 
 ; Runs fn with the listbox's redrawing suspended, then restores the scroll
@@ -1946,34 +2028,19 @@ UpdateTreeStar(name, code, starred) {
 }
 
 RemoveFavorite(*) {
-    global FavList, favData, favDisplay, FavBtn
+    global FavList, favDisplay, FavBtn
     idx := FavList.Value
     if !idx || idx > favDisplay.Length
         return
     name := BaseName(favDisplay[idx].name)
     code := favDisplay[idx].code
-    key := FavKey(name, code)
-    found := false
-    for i, fav in favData {
-        if FavKey(fav.name, fav.code) = key {
-            favData.RemoveAt(i)
-            SaveFavorites(favData)
-            RebuildFavoriteNames()
-            found := true
-            break
-        }
-    }
-    if !found {
-        TrayTip("This favorite comes from a Fav category in bar_cheats.txt - remove it there.", "BAR Cheat")
-        return
-    }
+    RemoveFavoriteEntry(name, code)
     ; The Linux port cannot delete one ListBox row in place; rebuild instead.
-    favDisplay.RemoveAt(idx)
-    UpdateTreeStar(name, code, IsFavorite(name, code))
-    UpdateFavList(favDisplay)
+    RefreshFavList()
     newIdx := Min(idx, favDisplay.Length)
     if newIdx
         FavList.Choose(newIdx)
+    UpdateTreeStar(name, code, IsFavorite(name, code))
     FavBtn.Text := "★ Favorite"
     UpdateStatusBar(GetDisplayedCheatCode())
 }

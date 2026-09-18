@@ -6,30 +6,6 @@ Cheat
     No cost ON|/nocost
     No cost OFF|/nocost 0
 
-Fav Units
-    Constructors|/give 10 armck 0
-    Construction Kbot|/give 10 armack 0
-    Spider|/give 10 armsptk 0
-    Titan (Bantha)|/give 10 armbanth 0
-    Butler - Fast Assist / Repair Bot|/give 10 armfark 0
-    DUMMYX TEST UNIT|/give 10 armcom 0
-Fav Buildings
-    Construction Turret|/give 1 armnanotc 0
-    Tech 2 Lab|/give 1 armalab 0
-    Tech 3 Lab|/give 1 armshltx 0
-    Advanced Radar|/give 1 armarad 0
-    Shield|/give 1 armgate 0
-Fav Weapons
-    Anti Missile (Ferret)|/give 1 armferret 0
-    Flak|/give 1 armflak 0
-    Basilica|/give 1 armbrtha 0
-    Mobile Tachyon Weapon|/give 2 armmanni 0
-    Ragnarok - Rapid-Fire Long-Range Plasma Cannon|/give 1 armvulc 0
-Fav Aircraft
-    Strategic Bomber|/give 20 armpnix 0
-    Atomic Bomber|/give 2 armliche 0
-    Advanced Construction Aircraft|/give 10 armaca 0
-
 ; BEGIN bar-scraper armada
 Armada Bots
     Tick - Fast Scout Bot - Tech Level 1|/give 1 armflea 0
