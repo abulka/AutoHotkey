@@ -6,9 +6,6 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "bs4>=0.0.2",
-    "pillow-avif-plugin>=1.4.6",
     "pillow>=11.0.0",
     "requests>=2.32.3",
-    "selenium>=4.25.0",
-    "webdriver-manager>=4.0.2",
 ]

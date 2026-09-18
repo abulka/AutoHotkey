@@ -72,6 +72,10 @@ global FavImg := ""
 global ImgToggleBtn := ""
 global cheatsData := Map()
 global unitsData := Map()
+global unitsDataByFaction := Map()
+global ActiveFaction := "Armada"
+global FactionBox := ""
+global TeamBox := ""
 global favData := []
 global favDisplay := []
 global favCheatData := []
@@ -82,7 +86,7 @@ global recentDisplay := []
 global ConfigFile := A_ScriptDir "/bar_cheat.ini"
 global GameWinCriteria := ["ahk_exe spring.exe", "Beyond All Reason"]
 global CurrentHotkey := ""
-global AppVersion := "1.0.0"
+global AppVersion := "1.1.0"
 
 ; Returns the window title/criteria of the game window, or 0 if not found.
 ; (WinTitle strings work on Windows and the Linux port; raw hwnds and
@@ -222,10 +226,11 @@ LoadCheatCodes() {
 AddToRecent(cheatName, cheatCode) {
     recents := LoadRecents()
 
-    ; Remove older invocations of the same cheat (name only - the newest wins)
+    ; Remove older invocations of the same cheat (unit code wins over name)
+    key := FavKey(cheatName, cheatCode)
     newRecents := []
     for r in recents {
-        if r.name != cheatName
+        if FavKey(r.name, r.code) != key
             newRecents.Push(r)
     }
     newRecents.InsertAt(1, {name: cheatName, code: cheatCode})
@@ -243,10 +248,14 @@ LoadRecents() {
             if !line || line = "Recent"
                 continue
             parts := StrSplit(line, "|", , 2)
-            ; Deduplicate by name (amount differences don't count)
-            if parts.Length = 2 && !seen.Has(parts[1]) {
-                seen[parts[1]] := true
-                recents.Push({name: parts[1], code: parts[2]})
+            ; Deduplicate by unit code where possible (amounts don't count)
+            if parts.Length = 2 {
+                name := BaseName(parts[1])
+                key := FavKey(name, parts[2])
+                if !seen.Has(key) {
+                    seen[key] := true
+                    recents.Push({name: name, code: parts[2]})
+                }
             }
         }
     }
@@ -272,6 +281,9 @@ ParseCheatFile(content) {
         if !line
             continue
 
+        if SubStr(line, 1, 1) = ";"
+            continue
+
         ; Check if line is a category (no pipe character and not indented)
         if !InStr(line, "|") && SubStr(line, 1, 4) != "    " {
             currentCategory := line
@@ -287,6 +299,57 @@ ParseCheatFile(content) {
         }
     }
     return cheats
+}
+
+; ---- Faction + unit-code helpers ----
+
+; Maps a cheat-list category to its faction, or "" when it isn't faction-tagged.
+; The legacy underscore categories (pre-faction data) belong to Armada.
+FactionFromCategory(category) {
+    if SubStr(category, 1, 7) = "Armada "
+        return "Armada"
+    if SubStr(category, 1, 7) = "Cortex "
+        return "Cortex"
+    if SubStr(category, 1, 1) = "_"
+        return "Armada"
+    return ""
+}
+
+; Removes a leading "Armada "/"Cortex " so the tree shows plain category names.
+StripFactionPrefix(category) {
+    for prefix in ["Armada ", "Cortex "]
+        if SubStr(category, 1, StrLen(prefix)) = prefix
+            return SubStr(category, StrLen(prefix) + 1)
+    return category
+}
+
+; The unit def name from a /give code, or "" for non-unit commands.
+UnitCodeFromCheat(cheatCode) {
+    if RegExMatch(cheatCode, "/give\s+\d+\s+(\w+)\s+\d+", &m)
+        return m[1]
+    return ""
+}
+
+; Identity used for favorites/recents: the unit code when available (unique per
+; faction), otherwise the display name (used for meta commands like /cheat).
+FavKey(name, cheatCode) {
+    code := UnitCodeFromCheat(cheatCode)
+    return code != "" ? code : name
+}
+
+; Display tag that distinguishes same-named units across factions.
+FactionTag(cheatCode) {
+    code := UnitCodeFromCheat(cheatCode)
+    if SubStr(code, 1, 3) = "arm"
+        return "[A] "
+    if SubStr(code, 1, 3) = "cor"
+        return "[C] "
+    return ""
+}
+
+; Per-faction tree expand/selection state file.
+FactionStateFile(faction) {
+    return A_ScriptDir "/bar_treeview_state_" (faction = "Cortex" ? "cortex" : "armada") ".txt"
 }
 
 LoadFavorites() {
@@ -769,6 +832,7 @@ ShowGui() {
     global chkTopmost, chkRememberPos, chkDark
     global mouseX, mouseY, CheatCodesFile, RecentCheatsFile, TreeViewStateFile
     global cheatsData, unitsData, favData, recentData, favDisplay, favCheatData
+    global FactionBox, TeamBox, unitsDataByFaction, ActiveFaction
     global PortTreeWidgets, PortUiLastTab, PortUiLastRecent, PortUiLastFav, PortUiLastMeta
 
     ; New controls get new handles: drop the cached GtkTreeView pointer and
@@ -814,6 +878,12 @@ ShowGui() {
     dark := Integer(GetSetting("DarkMode", 0))
     topmost := Integer(GetSetting("AlwaysOnTop", 1))
 
+    ; Restore the faction selection and its per-faction tree state file
+    ActiveFaction := GetSetting("Faction", "Armada")
+    if ActiveFaction != "Cortex"
+        ActiveFaction := "Armada"
+    TreeViewStateFile := FactionStateFile(ActiveFaction)
+
     ; Create new GUI
     gGui := Gui(topmost ? "+AlwaysOnTop +Owner" : "+Owner", "BAR Cheat")
     gGui.Title := "BAR Cheat Codes"
@@ -835,9 +905,13 @@ ShowGui() {
 
     ; ---- Units tab (UseTab makes coords relative to the tab page) ----
     TabCtrl.UseTab(1)
-    gGui.Add("Text", "x16 y" lay.labelY " w60", "Search:")
-    SearchBox := gGui.Add("Edit", "x78 y" lay.editY " w322 h24 " lstOpt, "")
+    gGui.Add("Text", "x16 y" lay.labelY " w54", "Search:")
+    SearchBox := gGui.Add("Edit", "x74 y" lay.editY " w176 h24 " lstOpt, "")
     SearchBox.OnEvent("Change", FilterTreeView)
+    gGui.Add("Text", "x258 y" lay.labelY " w50", "Faction:")
+    FactionBox := gGui.Add("DropDownList", "x310 y" lay.editY " w90 " lstOpt, ["Armada", "Cortex"])
+    FactionBox.Value := (ActiveFaction = "Cortex") ? 2 : 1
+    FactionBox.OnEvent("Change", FactionChanged)
 
     TreeView := gGui.Add("TreeView", "x16 y" lay.listY " w384 h" lay.listH)
     if IsWslPort
@@ -908,7 +982,7 @@ ShowGui() {
     ; ---- Shared Amount area (used by Units, Recent, Favorites and Meta) ----
     ; The caption is a separate Text control so dark mode can color it
     ; (groupbox captions ignore font colors)
-    AmountGroup := gGui.Add("GroupBox", "x16 y576 w384 h56 " gbOpt, "")
+    AmountGroup := gGui.Add("GroupBox", "x16 y576 w384 h86 " gbOpt, "")
     gGui.Add("Text", "x24 y572 w60 " (dark ? "Background202020" : ""), "Amount")
     AmountBox := gGui.Add("Edit", "x26 y598 w50 " lstOpt, "")
     IncBtn := gGui.Add("Button", "x88 y598 w30 " btnOpt, "+")
@@ -917,15 +991,23 @@ ShowGui() {
     Btn2 := gGui.Add("Button", "x192 y598 w30 " btnOpt, "2")
     Btn5 := gGui.Add("Button", "x224 y598 w30 " btnOpt, "5")
     Btn10 := gGui.Add("Button", "x256 y598 w36 " btnOpt, "10")
-    ImgToggleBtn := gGui.Add("Button", "x300 y598 w84 " btnOpt, "Hide Img")
+    gGui.Add("Text", "x24 y636 w88 " (dark ? "Background202020" : ""), "Add to Team")
+    teamChoices := []
+    Loop 16
+        teamChoices.Push("Team " (A_Index - 1))
+    TeamBox := gGui.Add("DropDownList", "x120 y632 w72 " lstOpt, teamChoices)
+    initialTeam := Integer(GetSetting("Team", "0"))
+    TeamBox.Value := (initialTeam >= 0 && initialTeam <= 15) ? initialTeam + 1 : 1
+    TeamBox.OnEvent("Change", TeamChanged)
+    ImgToggleBtn := gGui.Add("Button", "x300 y632 w84 " btnOpt, "Hide Img")
     ImgToggleBtn.OnEvent("Click", PortClick(ToggleImagePreview))
 
     ; Paste is the default button, placed first for prominence.
     ; In dark mode it loses the default glow (Enter still works via hotkey).
-    PasteBtn := gGui.Add("Button", "x16 y640 w186 " (dark ? "" : "+Default "), "Paste Code (Enter)")
+    PasteBtn := gGui.Add("Button", "x16 y670 w186 " (dark ? "" : "+Default "), "Paste Code (Enter)")
     PasteBtn.SetFont("w600")
-    FavBtn := gGui.Add("Button", "x210 y640 w96 " btnOpt, "★ Favorite")
-    CloseBtn := gGui.Add("Button", "x314 y640 w86 " btnOpt, "Close (Esc)")
+    FavBtn := gGui.Add("Button", "x210 y670 w96 " btnOpt, "★ Favorite")
+    CloseBtn := gGui.Add("Button", "x314 y670 w86 " btnOpt, "Close (Esc)")
 
     ; Dark mode: classic (-Theme) buttons need dark text on the gray face
     if dark {
@@ -944,8 +1026,8 @@ ShowGui() {
     RebuildFavoriteNames()
 
     ; Split the parsed categories into per-tab datasets:
-    ; "Fav *" categories -> favorites, "Cheat" -> meta list, rest -> units tree
-    cheatsData := Map(), unitsData := Map(), favCheatData := []
+    ; "Fav *" -> favorites, "Cheat" -> meta list, faction-tagged -> units tree
+    cheatsData := Map(), unitsDataByFaction := Map(), favCheatData := []
     for category, cheatList in LoadCheatCodes() {
         if InStr(category, "Fav") = 1 {
             for cheat in cheatList
@@ -953,9 +1035,21 @@ ShowGui() {
         } else if InStr(category, "Cheat") {
             cheatsData[category] := cheatList
         } else {
-            unitsData[category] := cheatList
+            faction := FactionFromCategory(category)
+            if faction = "" {
+                for f in ["Armada", "Cortex"] {
+                    if !unitsDataByFaction.Has(f)
+                        unitsDataByFaction[f] := Map()
+                    unitsDataByFaction[f][category] := cheatList
+                }
+            } else {
+                if !unitsDataByFaction.Has(faction)
+                    unitsDataByFaction[faction] := Map()
+                unitsDataByFaction[faction][StripFactionPrefix(category)] := cheatList
+            }
         }
     }
+    unitsData := unitsDataByFaction.Has(ActiveFaction) ? unitsDataByFaction[ActiveFaction] : Map()
     RebuildFavoriteNames()
     PopulateTreeView(TreeView, unitsData)
     RestoreTreeViewState(TreeView, TreeViewStateFile)
@@ -992,7 +1086,7 @@ ShowGui() {
     ; Status line shows the selected cheat code and hints (a text control
     ; instead of a real status bar so dark mode can style it)
     statusHints := "Select a cheat - Enter=Paste, Esc=Close"
-    gStatus := gGui.Add("Text", "x8 y674 w408 h24 +Border +0x200 " txtOpt, statusHints)
+    gStatus := gGui.Add("Text", "x8 y704 w408 h24 +Border +0x200 " txtOpt, statusHints)
 
     ; Handle GUI close event
     gGui.OnEvent("Close", CloseGui)
@@ -1003,7 +1097,7 @@ ShowGui() {
         gGui.OnEvent("Escape", CloseGui)
 
     ; Show the window, restoring the saved position if enabled
-    showOpts := "w424 h704"
+    showOpts := "w424 h734"
     if Integer(GetSetting("RememberPos", 1)) {
         px := IniRead(ConfigFile, "WindowPos", "X", "")
         py := IniRead(ConfigFile, "WindowPos", "Y", "")
@@ -1172,15 +1266,57 @@ TabChanged(*) {
 }
 
 UpdateAmountArea() {
-    global TabCtrl, AmountBox, IncBtn, DecBtn, Btn1, Btn2, Btn5, Btn10, PasteBtn, FavBtn
+    global TabCtrl, AmountBox, IncBtn, DecBtn, Btn1, Btn2, Btn5, Btn10, PasteBtn, FavBtn, TeamBox
     tab := IsObject(TabCtrl) ? TabCtrl.Value : 1
     dim := tab >= 4
-    for ctrl in [AmountBox, IncBtn, DecBtn, Btn1, Btn2, Btn5, Btn10, FavBtn]
+    for ctrl in [AmountBox, IncBtn, DecBtn, Btn1, Btn2, Btn5, Btn10, FavBtn, TeamBox]
         ctrl.Enabled := !dim
     ; Meta has no amount, but its commands must still be pasteable; only the
     ; Settings tab has nothing to paste.
     if IsObject(PasteBtn)
         PasteBtn.Enabled := tab != 5
+}
+
+; Switches the Units tree to the selected faction and restores that faction's
+; own expand/selection state.
+FactionChanged(*) {
+    global FactionBox, ActiveFaction, unitsDataByFaction, unitsData, TreeView, TreeViewStateFile, SearchBox, gStatus
+
+    if !IsObject(FactionBox)
+        return
+    newFaction := (FactionBox.Value = 2) ? "Cortex" : "Armada"
+    if newFaction = ActiveFaction
+        return
+
+    ; Save the outgoing faction's tree state before swapping datasets
+    SaveTreeViewState(TreeView, TreeViewStateFile, true)
+    ActiveFaction := newFaction
+    SetSetting("Faction", ActiveFaction)
+    TreeViewStateFile := FactionStateFile(ActiveFaction)
+    unitsData := unitsDataByFaction.Has(ActiveFaction) ? unitsDataByFaction[ActiveFaction] : Map()
+
+    if IsObject(SearchBox) && Trim(SearchBox.Value) != "" {
+        FilterTreeView()
+    } else {
+        PopulateTreeView(TreeView, unitsData)
+        RestoreTreeViewState(TreeView, TreeViewStateFile)
+    }
+    UpdateAmountArea()
+    if IsObject(gStatus)
+        UpdateStatusBar(GetDisplayedCheatCode())
+}
+
+; Selected team slot from the "Add to Team" dropdown (DDL value is 1-based).
+GetTeamNumber() {
+    global TeamBox
+    return IsObject(TeamBox) && TeamBox.Value >= 1 ? TeamBox.Value - 1 : ""
+}
+
+TeamChanged(*) {
+    global TeamBox
+    if IsObject(TeamBox)
+        SetSetting("Team", GetTeamNumber())
+    UpdateStatusBar(GetDisplayedCheatCode())
 }
 
 PopulateTreeView(TreeView, cheats, expand := false) {
@@ -1199,7 +1335,7 @@ PopulateTreeView(TreeView, cheats, expand := false) {
 
         ; Add cheats under category, marking favorites with a star
         for cheat in cheatList {
-            childId := TreeView.Add(FavMark(cheat.name), parentId, 0)
+            childId := TreeView.Add(FavMark(cheat.name, cheat.code), parentId, 0)
             itemMap[childId] := cheat.code
         }
     }
@@ -1429,6 +1565,21 @@ ReplaceCheatAmount(cheatCode, amount) {
     return RegExReplace(cheatCode, " (\d+) ", " " amount " ")
 }
 
+; Extracts the team ID (third integer) from a /give <amount> <unit> <team> code.
+ExtractCheatTeam(cheatCode) {
+    if RegExMatch(cheatCode, "/give\s+\d+\s+\w+\s+(\d+)", &m)
+        return m[1]
+    return ""
+}
+
+; Substitutes the team ID into a /give <amount> <unit> <team> code. Meta
+; forms such as /give resourcecheat 0 do not match and are left untouched.
+ReplaceCheatTeam(cheatCode, team) {
+    if team = ""
+        return cheatCode
+    return RegExReplace(cheatCode, "(/give\s+\d+\s+\w+\s+)\d+", "$1" team)
+}
+
 ClearSelectionUI() {
     global AmountBox, ImageViewer, RecentImg, FavImg
     AmountBox.Value := ""
@@ -1468,7 +1619,7 @@ UpdateCheatAmount(*) {
     LoadUnitImage(ImageViewer, cheatCode)
 
     if IsObject(FavBtn)
-        FavBtn.Text := IsFavorite(BaseName(cheatNameFromItem())) ? "★ Unfavorite" : "★ Favorite"
+        FavBtn.Text := IsFavorite(BaseName(cheatNameFromItem()), GetSelectedCheatCode()) ? "★ Unfavorite" : "★ Favorite"
 
     UpdateStatusBar(GetDisplayedCheatCode())
 }
@@ -1484,11 +1635,15 @@ cheatNameFromItem() {
     return BaseName(TreeView.GetText(sel))
 }
 
-; Applies the Amount box value to a /give cheat code (if applicable).
+; Applies the Amount and Team box values to a /give cheat code (if applicable).
 ApplyAmount(cheatCode) {
     global AmountBox
-    if InStr(cheatCode, "/give") && RegExMatch(cheatCode, " (\d+) ")
-        return ReplaceCheatAmount(cheatCode, AmountBox.Value)
+    if InStr(cheatCode, "/give") && RegExMatch(cheatCode, " (\d+) ") {
+        cheatCode := ReplaceCheatAmount(cheatCode, AmountBox.Value)
+        team := GetTeamNumber()
+        if team != ""
+            cheatCode := ReplaceCheatTeam(cheatCode, team)
+    }
     return cheatCode
 }
 
@@ -1566,7 +1721,7 @@ ListSelectionChanged(ctrl, *) {
         AmountBox.Value := ExtractCheatAmount(cheatCode)
     ; Keep the Favorite button label in sync with the selection
     if IsObject(FavBtn) && IsObject(TabCtrl) && TabCtrl.Value >= 2 && itemName != ""
-        FavBtn.Text := IsFavorite(itemName) ? "★ Unfavorite" : "★ Favorite"
+        FavBtn.Text := IsFavorite(itemName, cheatCode) ? "★ Unfavorite" : "★ Favorite"
     UpdateStatusBar(GetDisplayedCheatCode())
 }
 
@@ -1616,36 +1771,38 @@ RebuildFavoriteNames() {
     favNameSet := Map()
     for src in [favData, favCheatData] {
         for fav in src
-            favNameSet[fav.name] := true
+            favNameSet[FavKey(fav.name, fav.code)] := true
     }
 }
 
 ; Strips the favorite marker from a display name.
 BaseName(name) {
-    return SubStr(name, 1, 2) = "★ " ? SubStr(name, 3) : name
+    prefix := SubStr(name, 1, 2)
+    return (prefix = "★ " || prefix = "? ") ? SubStr(name, 3) : name
 }
 
-; Returns true if the given (base) name is a favorite.
-IsFavorite(name) {
+; Returns true if the given (base) name/code pair is a favorite.
+IsFavorite(name, code := "") {
     global favNameSet
-    return IsObject(favNameSet) && favNameSet.Has(name)
+    return IsObject(favNameSet) && favNameSet.Has(FavKey(name, code))
 }
 
 ; Returns the display name for a list/tree entry, starred if it's a favorite.
-FavMark(name) {
-    return IsFavorite(name) ? "★ " name : name
+FavMark(name, code := "") {
+    return IsFavorite(name, code) ? "★ " name : name
 }
 
 ; Builds the combined favorites list: starred favorites plus all entries
-; from "Fav *" categories in bar_cheats.txt, deduplicated by name.
+; from "Fav *" categories in bar_cheats.txt, deduplicated by unit code.
 GetFavoriteDisplayList() {
     global favData, favCheatData
     list := []
     seen := Map()
     for src in [favData, favCheatData] {
         for fav in src {
-            if !seen.Has(fav.name) {
-                seen[fav.name] := true
+            key := FavKey(fav.name, fav.code)
+            if !seen.Has(key) {
+                seen[key] := true
                 list.Push({name: fav.name, code: fav.code})
             }
         }
@@ -1682,7 +1839,7 @@ UpdateFavList(list) {
     favDisplay := list
     items := []
     for fav in list
-        items.Push(fav.name)
+        items.Push(FavMark(FactionTag(fav.code) fav.name, fav.code))
     FavList.Delete()
     if items.Length
         FavList.Add(items)
@@ -1703,7 +1860,7 @@ ToggleFavorite(*) {
             return
         name := BaseName(recentDisplay[idx].name)
         starred := ToggleByName(name, recentDisplay[idx].code)
-        UpdateTreeStar(name, starred)   ; keep the units tree marker in sync
+        UpdateTreeStar(name, recentDisplay[idx].code, starred)   ; keep the units tree marker in sync
         ; Rebuild the list without flicker, keeping selection and scroll
         apply() {
             RefreshRecentList()
@@ -1734,11 +1891,13 @@ ToggleFavorite(*) {
     RefreshFavList()
 }
 
-; Adds/removes a favorite by name; returns the new starred state.
+; Adds/removes a favorite by unit code (falling back to name for meta cheats);
+; returns the new starred state.
 ToggleByName(name, code) {
     global favData
+    key := FavKey(name, code)
     for i, fav in favData {
-        if fav.name = name {
+        if FavKey(fav.name, fav.code) = key {
             favData.RemoveAt(i)
             SaveFavorites(favData)
             RebuildFavoriteNames()
@@ -1766,9 +1925,11 @@ WithListRedrawSuppressed(ctrl, fn) {
         DllCall("user32\InvalidateRect", "ptr", ctrl.Hwnd, "ptr", 0, "int", 1)
 }
 
-; Updates the star marker on the matching units-tree item (if visible).
-UpdateTreeStar(name, starred) {
+; Updates the star marker on the matching units-tree item (if visible),
+; matching by unit code so same-named units in other factions are ignored.
+UpdateTreeStar(name, code, starred) {
     global TreeView
+    key := FavKey(name, code)
     itemId := 0
     Loop {
         itemId := TreeView.GetNext(itemId, "Full")
@@ -1776,7 +1937,8 @@ UpdateTreeStar(name, starred) {
             break
         if !TreeView.GetParent(itemId)
             continue
-        if BaseName(TreeView.GetText(itemId)) = name {
+        itemCode := TreeView.itemMap.Has(itemId) ? TreeView.itemMap[itemId] : ""
+        if FavKey(BaseName(TreeView.GetText(itemId)), itemCode) = key {
             TreeView.Modify(itemId, "", starred ? "★ " name : name)
             break
         }
@@ -1789,9 +1951,11 @@ RemoveFavorite(*) {
     if !idx || idx > favDisplay.Length
         return
     name := BaseName(favDisplay[idx].name)
+    code := favDisplay[idx].code
+    key := FavKey(name, code)
     found := false
     for i, fav in favData {
-        if fav.name = name {
+        if FavKey(fav.name, fav.code) = key {
             favData.RemoveAt(i)
             SaveFavorites(favData)
             RebuildFavoriteNames()
@@ -1805,7 +1969,7 @@ RemoveFavorite(*) {
     }
     ; The Linux port cannot delete one ListBox row in place; rebuild instead.
     favDisplay.RemoveAt(idx)
-    UpdateTreeStar(name, IsFavorite(name))
+    UpdateTreeStar(name, code, IsFavorite(name, code))
     UpdateFavList(favDisplay)
     newIdx := Min(idx, favDisplay.Length)
     if newIdx
@@ -1854,7 +2018,7 @@ UpdateRecentList(list) {
     recentDisplay := list
     items := []
     for r in list
-        items.Push(FavMark(r.name))
+        items.Push(FavMark(FactionTag(r.code) r.name, r.code))
     RecentList.Delete()
     if items.Length
         RecentList.Add(items)
@@ -1868,8 +2032,9 @@ RemoveRecent(*) {
     if !idx || idx > recentDisplay.Length
         return
     name := BaseName(recentDisplay[idx].name)
+    key := FavKey(name, recentDisplay[idx].code)
     for i, r in recentData {
-        if r.name = name {
+        if FavKey(r.name, r.code) = key {
             recentData.RemoveAt(i)
             break
         }
@@ -1898,7 +2063,7 @@ RefreshMetaList() {
     }
     items := []
     for m in metaListData
-        items.Push(FavMark(m.name))
+        items.Push(FavMark(m.name, m.code))
     MetaList.Delete()
     if items.Length
         MetaList.Add(items)
@@ -1920,6 +2085,9 @@ PasteRecent(*) {
 ; Shared paste routine: activates the game window and types the code.
 DoPaste(cheatName, cheatCode) {
     global gGui, mouseX, mouseY
+
+    ; Never record the display marker (favorite star) in Recents
+    cheatName := BaseName(cheatName)
 
     ; Verify the game is running; only paste into Beyond All Reason
     game := FindGameWindow()

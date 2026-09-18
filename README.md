@@ -38,15 +38,16 @@ Press **Alt+C** again any time to reopen the GUI and spawn more units.
 
 Notes:
 
-- **Tabs**: the GUI has five tabs — **Units** (searchable unit tree with image preview), **Recent** (recently used cheats), **Favorites** (starred + "Fav" cheats), **Meta** (cheat commands like `/cheat`, `/godmode`), and **Settings**.
-- **Favorites star**: favorited entries are marked with a ★ in the Units tree, Recent and Meta lists. The ★ Favorite button toggles the star on the selected unit; favorites are deduplicated by name (amount differences don't create new entries).
+- **Tabs**: the GUI has five tabs — **Units** (searchable unit tree with image preview and an Armada/Cortex faction selector), **Recent** (recently used cheats), **Favorites** (starred + "Fav" cheats), **Meta** (cheat commands like `/cheat`, `/godmode`), and **Settings**.
+- **Factions**: the **Faction** dropdown on the Units tab switches the tree between **Armada** and **Cortex**; the choice is remembered (`Faction=` in `bar_cheat.ini`) and each faction keeps its own tree expand/selection state.
+- **Favorites star**: favorited entries are marked with a ★ in the Units tree, Recent and Meta lists. The ★ Favorite button toggles the star on the selected unit; favorites are deduplicated by unit code, so Armada and Cortex versions of the same-named unit are kept separately (amount differences don't create new entries).
 - **Selection memory**: the last selected tab, the last selected item, expand state and scroll position of the units tree are all restored on reopen; the Units tab also remembers its last used Amount value.
-- **Shared Amount area**: the Amount box (+/− and 1/2/5/10 presets) sits below the tabs and applies to whichever tab you're on — pick a unit, recent, or favorite, set an amount like 7, and Enter pastes e.g. `/give 7 <unit> 0`.
-- **Recent**: every pasted cheat is recorded in `bar_cheats_recent.txt` and shown on the Recent tab — deduplicated by name, so only the most recent invocation of each cheat is kept. The Recent tab has its own search box; the Remove button deletes the selected entry.
+- **Shared Amount/Team area**: the Amount box (+/− and 1/2/5/10 presets) and the **Add to Team** dropdown (`Team 0`–`Team 15`) sit below the tabs and apply to whichever tab you're on — pick a unit, set an amount like 7 and a team, and Enter pastes e.g. `/give 7 <unit> <team>`. The team slot defaults to `0`, is remembered, and is only substituted for `/give <amount> <unit> <team>` commands. Note this is a lobby **team slot**, not a faction — units keep the faction of whatever unit code you picked.
+- **Recent**: every pasted cheat is recorded in `bar_cheats_recent.txt` and shown on the Recent tab — deduplicated by unit code, so only the most recent invocation of each unit is kept. Armada and Cortex entries are tagged `[A]`/`[C]`. The Recent tab has its own search box; the Remove button deletes the selected entry.
 - **Dark mode** palette: window `#202020`, lists/edits `#2D2D2D`, buttons classic gray with black text (`-Theme` — true dark button faces aren't achievable without owner-drawing), status line `#1A1A1A`, light text, and dark themes for the tab headers, checkboxes and tree (Windows 10 1809+; older systems fall back gracefully). The "Amount" groupbox caption is a colored text control so it stays readable.
 - **Image preview**: a unit preview shows on the Units, Recent and Favorites tabs (192px, collapsed with the "Hide Img" button so the lists grow). The toggle is remembered in `bar_cheat.ini`.
 - **Favorites**: two sources, both shown on the Favorites tab — (1) categories starting with "Fav" (e.g. "Fav Units") in `bar_cheats.txt`, and (2) cheats starred with the "★ Favorite" button (works on the Cheats/Units trees), stored in `bar_cheats_favorites.txt` (gitignored). Starred ones can be removed from the GUI; "Fav" category entries are managed by editing `bar_cheats.txt`. The Favorites tab has its own search box.
-- **Tree memory**: expand/collapse state, last selected item, and scroll position are remembered for both trees (`bar_treeview_state.txt` / `bar_cheattree_state.txt`), and the last used tab is restored on reopen.
+- **Tree memory**: expand/collapse state, last selected item, and scroll position are remembered per faction (`bar_treeview_state_armada.txt` / `bar_treeview_state_cortex.txt`), and the last used tab is restored on reopen.
 - **Custom hotkey**: set it on the Settings tab with the hotkey box (or edit `Hotkey=` in `bar_cheat.ini`, e.g. `^!c` for Ctrl+Alt+C, see [AutoHotkey hotkey notation](https://www.autohotkey.com/docs/v2/Hotkeys.htm)). An invalid value falls back to Alt+C.
 - **Settings tab** also has toggles for **Always on top**, **Remember window position**, and **Dark mode** — all persisted to `bar_cheat.ini`.
 - **Game detection**: pasting only happens when the game window is detected; otherwise a tray notification is shown and nothing is typed. The window is matched by trying each criterion in `GameWinCriteria` in the script (currently the `spring.exe` engine process, then any window title containing "Beyond All Reason") — adjust if your setup differs.
@@ -54,6 +55,17 @@ Notes:
 - The treeview expand/collapse state is saved in `bar_treeview_state.txt`.
 - Unit preview images are loaded from the `unit_images/` folder when a selected unit has a matching image.
 - `bar_cheats.txt` can be edited (even while the script is running); the list reloads automatically next time the GUI is opened.
+
+#### Refreshing unit data
+
+Unit names, descriptions and preview images are scraped from beyondallreason.info:
+
+```bash
+uv run python bar_web_scraper.py --check --faction all                 # dry run: list new/removed/changed units
+uv run python bar_web_scraper.py --faction all --merge bar_cheats.txt  # refresh data + images
+```
+
+`--check` downloads and writes nothing. `--merge` replaces only the managed `Armada *`/`Cortex *` blocks in `bar_cheats.txt` (leaving `Cheat` and `Fav *` categories untouched) and fetches any missing `unit_images/<code>.png`.
 
 #### Example Codes
 

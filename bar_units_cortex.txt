@@ -1,0 +1,203 @@
+_Bots
+    Grunt - Fast Infantry Bot - Tech Level 1|/give 1 corak 0
+    Aggravator - Rocket Bot - good vs. static defenses - Tech Level 1|/give 1 corstorm 0
+    Construction Bot - Tech 1 Constructor - Tech Level 1|/give 1 corck 0
+    Trasher - Amphibious Anti-air Bot - Tech Level 1|/give 1 corcrash 0
+    Graverobber - Stealthy Rez / Reclaim / Repair Bot - Tech Level 1|/give 1 cornecro 0
+    Thug - Light Plasma Bot - Tech Level 1|/give 1 corthud 0
+    Cortex Commander - Commander - Tech Level 1|/give 1 corcom 0
+    Bedbug - Amphibious Crawling Bomb - Tech Level 2|/give 1 corroach 0
+    Deceiver - Radar Jammer Bot - Tech Level 2|/give 1 corspec 0
+    Augur - Radar Bot - Tech Level 2|/give 1 corvoyr 0
+    Spectre - Radar-Invisible Spy Bot - Tech Level 2|/give 1 corspy 0
+    Fiend - Fast Assault Bot - Tech Level 2|/give 1 corpyro 0
+    Twitcher - Combat Engineer - Tech Level 2|/give 1 corfast 0
+    Duck - Amphibious Bot - Tech Level 2|/give 1 coramph 0
+    Sheldon - Mobile Mortar Bot - Tech Level 2|/give 1 cormort 0
+    Advanced Construction Bot - Tech 2 Constructor - Tech Level 2|/give 1 corack 0
+    Termite - Heavy All-terrain Assault Spider - Tech Level 2|/give 1 cortermite 0
+    Sumo - Armored Assault Bot - Tech Level 2|/give 1 corcan 0
+    Arbiter - Heavy Rocket Bot - Tech Level 2|/give 1 corhrk 0
+    Manticore - Heavy Amphibious Anti-Air Bot - Tech Level 2|/give 1 coraak 0
+    Commander - Decoy Commander - Tech Level 2|/give 1 cordecom 0
+    Skuttle - Advanced Amphibious Crawling Bomb - Tech Level 2|/give 1 corsktl 0
+    Commando - Stealthy Paratrooper Bot - Tech Level 2|/give 1 cormando 0
+    Mammoth - Heavily Armored Assault Bot - Tech Level 2|/give 1 corsumo 0
+    Shiva - Amphibious Siege Mech - Tech Level 3|/give 1 corshiva 0
+    Karganeth - All-Terrain Assault Mech - Tech Level 3|/give 1 corkarg 0
+    Catapult - Heavy Rocket Bot - Tech Level 3|/give 1 corcat 0
+    Demon - Flamethrower Mech - Tech Level 3|/give 1 cordemon 0
+    Behemoth - (barely) Mobile Heavy Turret - Tech Level 3|/give 1 corjugg 0
+    Juggernaut - Experimental Assault Bot - Tech Level 3|/give 1 corkorg 0
+
+_Vehicles
+    Rascal - Light Scout Vehicle - Tech Level 1|/give 1 corfav 0
+    Trapper - Stealthy Minelayer / Minesweeper - Tech Level 1|/give 1 cormlv 0
+    Incisor - Light Tank - Tech Level 1|/give 1 corgator 0
+    Construction Vehicle - Tech 1 Constructor - Tech Level 1|/give 1 corcv 0
+    Lasher - Missile Truck - Tech Level 1|/give 1 cormist 0
+    Muskrat - Amphibious Construction Vehicle - Tech Level 1|/give 1 cormuskrat 0
+    Wolverine - Light Mobile Artillery - Tech Level 1|/give 1 corwolv 0
+    Garpike - Light Amphibious Tank - Tech Level 1|/give 1 corgarp 0
+    Pounder - Anti-Swarm Tank - Tech Level 1|/give 1 corlevlr 0
+    Brute - Medium Assault Tank - Tech Level 1|/give 1 corraid 0
+    Omen - Radar Vehicle - Tech Level 2|/give 1 corvrad 0
+    Obscurer - Radar Jammer Vehicle - Tech Level 2|/give 1 coreter 0
+    Salamander - Medium Heat Ray Amphibious Tank - Tech Level 2|/give 1 corsala 0
+    Quaker - Mobile Artillery - Tech Level 2|/give 1 cormart 0
+    Fury - Anti-Air Flak Vehicle - Tech Level 2|/give 1 corsent 0
+    Advanced Construction Vehicle - Tech 2 Constructor - Tech Level 2|/give 1 coracv 0
+    Tiger - Heavy Assault Tank - Tech Level 2|/give 1 correap 0
+    Negotiator - Stealthy Rocket Launcher - good vs. static defense - Tech Level 2|/give 1 corvroc 0
+    Banisher - Heavy Missile Tank - Tech Level 2|/give 1 corban 0
+    Poison Arrow - Very Heavy Amphibious Tank - Tech Level 2|/give 1 corparrow 0
+    Saviour - Mobile Anti-Nuke - Tech Level 2|/give 1 cormabm 0
+    Tzar - Very Heavy Assault Tank - Tech Level 2|/give 1 corgol 0
+    Tremor - Heavy Artillery Vehicle - Tech Level 2|/give 1 cortrem 0
+
+_Aircraft
+    Finch - Scout - Tech Level 1|/give 1 corfink 0
+    Shuriken - Light Paralyzer Drone - Tech Level 1|/give 1 corbw 0
+    Valiant - Fighter - Tech Level 1|/give 1 corveng 0
+    Hercules - Light Air Transport - Tech Level 1|/give 1 corvalk 0
+    Bat - Seaplane Swarmer - Tech Level 1|/give 1 corsfig 0
+    Construction Aircraft - Tech 1 Constructor - Tech Level 1|/give 1 corca 0
+    Watcher - Advanced Radar / Sonar Plane - Tech Level 1|/give 1 corhunt 0
+    Construction Seaplane - Tech 1 Constructor - Tech Level 1|/give 1 corcsa 0
+    Whirlwind - Bomber - Tech Level 1|/give 1 corshad 0
+    Hephaestus - Heavy Transport - Tech Level 1|/give 1 corhvytrans 0
+    Dam Buster - Seaplane Bomber - Tech Level 1|/give 1 corsb 0
+    Cutlass - Seaplane Gunship - Tech Level 1|/give 1 corcut 0
+    Monsoon - Torpedo Gunship - Tech Level 1|/give 1 corseap 0
+    Nighthawk - Stealth Fighter - Tech Level 2|/give 1 corvamp 0
+    Condor - Radar / Sonar Plane - Tech Level 2|/give 1 corawac 0
+    Hailstorm - Heavy Strategic Bomber - Tech Level 2|/give 1 corhurc 0
+    Advanced Construction Aircraft - Tech 2 Constructor - Tech Level 2|/give 1 coraca 0
+    Wasp - Gunship - Tech Level 2|/give 1 corape 0
+    Skyhook - Heavy Assault Transport - Tech Level 2|/give 1 corseah 0
+    Angler - Torpedo Bomber - Tech Level 2|/give 1 cortitan 0
+    Dragon - Flying Fortress - Tech Level 2|/give 1 corcrwh 0
+
+_Ships
+    Supporter - Light Gun Boat - Tech Level 1|/give 1 coresupp 0
+    Construction Ship - Tech 1 Constructor - Tech Level 1|/give 1 corcs 0
+    Herring - Missile Corvette / Light Anti Air / Sonar - Tech Level 1|/give 1 corpt 0
+    Death Cavalry - Resurrection Sub - Tech Level 1|/give 1 correcl 0
+    Riptide - Assault Frigate - Tech Level 1|/give 1 corpship 0
+    Orca - Submarine - Tech Level 1|/give 1 corsub 0
+    Oppressor - Destroyer - Tech Level 1|/give 1 corroy 0
+    Pathfinder - Naval Engineer - Tech Level 2|/give 1 cormls 0
+    Phantasm - Radar Jammer Ship - Tech Level 2|/give 1 corsjam 0
+    Brimstone - Anti-Swarm Ship - Tech Level 2|/give 1 corfship 0
+    Advanced Construction Sub - Tech 2 Constructor - Tech Level 2|/give 1 coracsub 0
+    Predator - Fast Assault Submarine - Tech Level 2|/give 1 corshark 0
+    Arrow Storm - Anti-Air Ship - Tech Level 2|/give 1 corarch 0
+    Buccaneer - Cruiser - Tech Level 2|/give 1 corcrus 0
+    Oasis - Mobile Anti-Nuke, Generator, and Radar/Sonar - Tech Level 2|/give 1 corantiship 0
+    Kraken - Long-Range Battle Submarine - Tech Level 2|/give 1 corssub 0
+    Messenger - Cruise Missile Ship - Tech Level 2|/give 1 cormship 0
+    Despot - Battleship - Tech Level 2|/give 1 corbats 0
+    Black Hydra - Flagship - Tech Level 2|/give 1 corblackhy 0
+
+_Hovercraft
+    Goon - Fast Attack Hovercraft - Tech Level 1|/give 1 corsh 0
+    Construction Hovercraft - Tech 1 Constructor - Tech Level 1|/give 1 corch 0
+    Mangonel - Hovercraft Rocket Launcher - Tech Level 1|/give 1 cormh 0
+    Birdeater - Anti-Air Hovercraft - Tech Level 1|/give 1 corah 0
+    Cayman - Hovertank - Tech Level 1|/give 1 corsnap 0
+    Halberd - Assault Hovertank - Tech Level 1|/give 1 corhal 0
+    Cataphract - Heavy Laser Hovertank - Tech Level 3|/give 1 corsok 0
+
+_Factories
+    Shipyard - Produces Tech 1 Ships - Tech Level 1|/give 1 corsy 0
+    Bot Lab - Produces Tech 1 Bots - Tech Level 1|/give 1 corlab 0
+    Vehicle Plant - Produces Tech 1 Vehicles - Tech Level 1|/give 1 corvp 0
+    Aircraft Plant - Produces Tech 1 Aircraft - Tech Level 1|/give 1 corap 0
+    Naval Hovercraft Platform - Builds Hovercraft - Tech Level 1|/give 1 corfhp 0
+    Hovercraft Platform - Builds Hovercraft - Tech Level 1|/give 1 corhp 0
+    Amphibious Complex - Produces Amphibious / Underwater Units - Tech Level 1|/give 1 coramsub 0
+    Seaplane Platform - Builds Seaplanes - Tech Level 1|/give 1 corplat 0
+    Advanced Bot Lab - Produces Tech 2 Bots - Tech Level 2|/give 1 coralab 0
+    Advanced Vehicle Plant - Produces Tech 2 Vehicles - Tech Level 2|/give 1 coravp 0
+    Advanced Shipyard - Produces Tech 2 Ships - Tech Level 2|/give 1 corasy 0
+    Advanced Aircraft Plant - Produces Tech 2 Aircraft - Tech Level 2|/give 1 coraap 0
+    Experimental Gantry - Produces Large Amphibious Units - Tech Level 3|/give 1 corgantuw 0
+    Experimental Gantry - Produces Experimental Units - Tech Level 3|/give 1 corgant 0
+
+_Defense Buildings
+    Light Mine - Light Mine - Tech Level 1|/give 1 cormine1 0
+    Medium Mine - Medium Mine - Tech Level 1|/give 1 cormine2 0
+    Heavy Mine - Heavy Mine, Naval Series - Tech Level 1|/give 1 corfmine3 0
+    Heavy Mine - Heavy Mine - Tech Level 1|/give 1 cormine3 0
+    Slingshot - Floating Anti-air Tower - Tech Level 1|/give 1 corfrt 0
+    Thistle - Light Anti-air Tower - Tech Level 1|/give 1 corrl 0
+    Guard - Light Laser Tower - Tech Level 1|/give 1 corllt 0
+    Urchin - Offshore Torpedo Launcher - Tech Level 1|/give 1 cortl 0
+    Twin Guard - Anti-Swarm Double Guard - Tech Level 1|/give 1 corhllt 0
+    Exploiter - Armed Metal Extractor - Tech Level 1|/give 1 corexp 0
+    Jellyfish - Coastal Torpedo Launcher - Tech Level 1|/give 1 cordl 0
+    Dragon's Maw - Pop-up Flamethrower Turret - Tech Level 1|/give 1 cormaw 0
+    SAM - Hardened Anti-Air Missile Battery - Tech Level 1|/give 1 cormadsam 0
+    Coral - Floating Heavy Laser Tower - Tech Level 1|/give 1 corfhlt 0
+    Warden - Area Control Laser Tower - Tech Level 1|/give 1 corhlt 0
+    Eradicator - Medium-Range Anti-Air Missile Battery - Tech Level 1|/give 1 corerad 0
+    Agitator - Area Control Plasma Artillery - Tech Level 1|/give 1 corpun 0
+    Scorpion - Pop-up Sabot Battery - Tech Level 2|/give 1 corvipe 0
+    Naval Birdshot - Anti-Air Flak Gun - Naval Series - Tech Level 2|/give 1 corenaa 0
+    Birdshot - Anti-Air Flak Gun - Tech Level 2|/give 1 corflak 0
+    Lamprey - Advanced Torpedo Launcher - Tech Level 2|/give 1 coratl 0
+    Catalyst - Tactical Missile Launcher - Tech Level 2|/give 1 cortron 0
+    Devastator - Floating Multi-Weapon Platform - Tech Level 2|/give 1 corfdoom 0
+    Screamer - Long Range Anti-Air Tower - Tech Level 2|/give 1 corscreamer 0
+    Advanced Exploiter - Armed Advanced Metal Extractor - Tech Level 2|/give 1 cormexp 0
+    Persecutor - Pop-up Plasma Artillery - Tech Level 2|/give 1 cortoast 0
+    Bulwark - Energy Weapon - Tech Level 2|/give 1 cordoom 0
+    Cerberus - Geothermal Plasma Battery - Tech Level 2|/give 1 corbhmth 0
+    Basilisk - Long Range Plasma Cannon - Tech Level 2|/give 1 corint 0
+    Apocalypse - Nuclear ICBM Launcher - Tech Level 2|/give 1 corsilo 0
+    Calamity - Rapid-Fire Long-Range Plasma Cannon - Tech Level 2|/give 1 corbuzz 0
+
+_Buildings
+    Naval Energy Converter - Converts 70 energy into 1 metal per sec - Tech Level 1|/give 1 corfmkr 0
+    Energy Converter - Converts 70 energy into 1 metal per sec - Tech Level 1|/give 1 cormakr 0
+    Dragon's Teeth - Fortification - Tech Level 1|/give 1 cordrag 0
+    Shark's Teeth - Naval Fortification - Tech Level 1|/give 1 corfdrag 0
+    Beholder - Perimeter Camera - Tech Level 1|/give 1 coreyes 0
+    Wind Turbine - Produces Energy. Depends on wind strength. - Tech Level 1|/give 1 corwin 0
+    Metal Extractor - Extracts Metal from Metalspots - Tech Level 1|/give 1 cormex 0
+    Radar Tower - Early Warning System - Tech Level 1|/give 1 corrad 0
+    Tidal Generator - Produces Energy (depends on map) - Tech Level 1|/give 1 cortide 0
+    Castro - Short-Range Jamming Device - Tech Level 1|/give 1 corjamt 0
+    Naval Radar / Sonar Tower - Early Warning System - Tech Level 1|/give 1 corfrad 0
+    Solar Collector - Produces 20 Energy - Tech Level 1|/give 1 corsolar 0
+    Energy Storage - Increases Energy Storage (6000) - Tech Level 1|/give 1 corestor 0
+    Naval Energy Storage - Increases Energy Storage (6000) - Tech Level 1|/give 1 coruwes 0
+    Construction Turret - Assist & Repair in large radius - Tech Level 1|/give 1 cornanotc 0
+    Naval Construction Turret - Assist & Repair in large radius - Tech Level 1|/give 1 cornanotcplat 0
+    Metal Storage - Increases Metal Storage (3000) - Tech Level 1|/give 1 cormstor 0
+    Naval Metal Storage - Increases Metal Storage (3000) - Tech Level 1|/give 1 coruwms 0
+    Advanced Solar Collector - Produces 80 Energy - Tech Level 1|/give 1 coradvsol 0
+    Geothermal Powerplant - Produces 300 Energy - Tech Level 1|/give 1 corgeo 0
+    Offshore Geothermal Powerplant - Produces 300 Energy - Tech Level 1|/give 1 coruwgeo 0
+    Juno - Anti Radar / Jammer / Minefield / ScoutSpam Weapon - Tech Level 1|/give 1 corjuno 0
+    Fortification Wall - Advanced Fortification - Tech Level 2|/give 1 corfort 0
+    Shroud - Long-Range Jamming Tower - Tech Level 2|/give 1 corshroud 0
+    Advanced Sonar Station - Extended Sonar - Tech Level 2|/give 1 corason 0
+    Advanced Energy Converter - Converts 600 energy into 10.3 metal per sec - Tech Level 2|/give 1 cormmkr 0
+    Naval Advanced Energy Converter - Converts 600 energy into 10.3 metal per sec - Tech Level 2|/give 1 coruwmmm 0
+    Advanced Radar Tower - Long-Range Radar - Tech Level 2|/give 1 corarad 0
+    Advanced Metal Extractor - Advanced Metal Extractor / Storage - Tech Level 2|/give 1 cormoho 0
+    Naval Advanced Metal Extractor - Advanced Metal Extractor / Storage - Tech Level 2|/give 1 coruwmme 0
+    Nemesis - Intrusion Countermeasure System - Tech Level 2|/give 1 corsd 0
+    Hardened Metal Storage - Increases Metal Storage (10000) - Tech Level 2|/give 1 coruwadvms 0
+    Naval Pinpointer - Enhanced Radar Targeting - Tech Level 2|/give 1 corfatf 0
+    Pinpointer - Enhanced Radar Targeting, more facilities enhance accuracy - Tech Level 2|/give 1 cortarg 0
+    Hardened Energy Storage - Increases Energy Storage (40000) - Tech Level 2|/give 1 coruwadves 0
+    Advanced Geothermal Powerplant - Produces 1250 Energy (Hazardous) - Tech Level 2|/give 1 corageo 0
+    Prevailer - Anti-Nuke System - Tech Level 2|/give 1 corfmd 0
+    Advanced Geothermal Powerplant - Produces 1250 Energy (Hazardous) - Tech Level 2|/give 1 coruwageo 0
+    Overseer - Plasma Shield - Tech Level 2|/give 1 corgate 0
+    Fusion Reactor - Produces 850 Energy - Tech Level 2|/give 1 corfus 0
+    Naval Fusion Reactor - Produces 1220 Energy - Tech Level 2|/give 1 coruwfus 0
+    Advanced Fusion Reactor - Produces 3000 Energy (Hazardous) - Tech Level 2|/give 1 corafus 0
+
