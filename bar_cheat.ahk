@@ -95,7 +95,7 @@ global recentDisplay := []
 global ConfigFile := A_ScriptDir "/bar_cheat.ini"
 global GameWinCriteria := ["ahk_exe spring.exe", "Beyond All Reason"]
 global CurrentHotkey := ""
-global AppVersion := "1.1.0"
+global AppVersion := "1.2.0"
 
 ; Returns the window title/criteria of the game window, or 0 if not found.
 ; (WinTitle strings work on Windows and the Linux port; raw hwnds and
