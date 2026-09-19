@@ -142,6 +142,10 @@ sent. The script therefore owns its own virtual keyboard:
   The code is also copied to the clipboard as a backup.
 - The script never uses XTEST for the paste, so no portal consent dialog
   appears and normal Enter/Escape are unaffected.
+- `AHK_LIBEI=0` is set at startup (port only), so the port cannot open its
+  libei/RemoteDesktop route either.  That route is what raises GNOME's
+  "allow remote connection" consent dialog; uinput does all the typing, so
+  libei is never needed.
 
 ### 3.4 Pointer restore (spawn position)
 
@@ -203,6 +207,8 @@ later port release fixes the underlying defect. Port source references are to
 | `Invalid arg type` for `"uint"`/`"uptr"` | the port's unsigned-type check is case-sensitive (`'U'`) | use `"UInt"`/`"UPtr"` |
 | `.Hwnd` cannot be passed to GTK functions | script-visible Hwnd values are opaque 32-bit handles, not pointers (`to_hwnd` in `script_gui_linux.cpp`) | locate real widgets via `gtk_window_list_toplevels` + title + `g_type_check_instance_is_a`; cache per handle (`PortTreeWidget`) |
 | `TreeView.Add(..., "Expand")` / `Modify(id, "Expand"/"Select")` do nothing | `TV_AddModify` ignores its options (`(void)aOptions`) | `PortTreeExpandAll` / `PortTreeExpandItem` / `PortTreeSelectItem` call GTK directly |
+| Tree expand/collapse state not saved or restored | `TreeView.Get("Expand")` always returns 0 (the port's `TV_Get` only matches the `"Expanded"` spelling), and `TV_GetNext(id, "Full")` returns the first child instead of the next node, so the save/restore walk never leaves the first category | `PortTreeIsExpanded` (GTK) and `TreeNextFull` (child -> next sibling -> parent's next sibling) |
+| Tree scroll position not saved or restored | `TVM_GETFIRSTVISIBLE` and `TVM_ENSUREVISIBLE` are inert on the port | save `Top:<name>` via `PortTreeTopItemText`; restore by stashing the id in `PendingTreeTopId` and scrolling with `PortTreeScrollToItem` via `ApplyPendingTreeScroll` (after Show/repopulate, once the adjustment has extent) |
 | Double-click on a unit starts a label edit instead of pasting | the port always creates the tree renderer with `editable=TRUE` | `PortDisableTreeEdit` sets the `editable` GObject property FALSE via a GValue (`G_TYPE_BOOLEAN` = 20; GTK3 has no setter symbol) |
 | ~24 px blank row above the first category on the Units tab | the port calls `gtk_tree_view_set_headers_visible(FALSE)` for ListBox but not TreeView | `PortDisableTreeEdit` also calls it for the tree |
 | `GtkTreeView` not accepted as `GtkCellLayout` | in GTK3 the **column** implements `GtkCellLayout`, not the view | get `gtk_tree_view_get_column(view, 0)` first |
@@ -212,7 +218,7 @@ later port release fixes the underlying defect. Port source references are to
 | Window position never remembered | `WinGetPos("ahk_id ...")` cannot resolve opaque handles; GTK reports the first-show position once the window is hidden | `SaveWindowPos` reads `gtk_window_get_position` on the real GtkWindow **only while visible**; `DoPaste` saves before hiding; remember-position defaults to on |
 | `WinActivate`/`WinExist` with `ahk_id` throw | opaque handles; title matching is case-sensitive substring | `FindGameWindow`/`GameWinCriteria` return title strings; calls wrapped in `try` |
 | Native-Wayland GUI invisible to `WinActive` | GTK backend selection when both `DISPLAY` and `WAYLAND_DISPLAY` are set | `EnvSet("GDK_BACKEND", "x11")` before GTK init |
-| `SendMessage`/`TVM_ENSUREVISIBLE`, dark title bar, redraw gestures | Windows-only or inert on the port | wrapped in `try` / tolerated no-ops |
+| `SendMessage`, dark title bar, redraw gestures | Windows-only or inert on the port | wrapped in `try` / tolerated no-ops; tree expand/scroll use the GTK helpers above instead of the inert `TVM_*` messages |
 
 Porting-fold behaviors kept from session 1 (still required):
 
@@ -262,6 +268,71 @@ Useful checks:
   `uinput-writable`, libei state, GNOME extension presence, etc.
 - **Game-not-found debug dump**: `DoPaste` writes `paste_dbg.log` in the
   script dir when `FindGameWindow()` fails.
+- **Confirm the real input path**: `grep -A3 -i "bar cheat virtual"
+  /proc/bus/input/devices` — if the virtual keyboard exists, the script is
+  typing through uinput (no XTEST, no consent dialog). If it is absent, the
+  paste fell back to `SendText`/XTEST.
+- **Inspect a running instance's environment**:
+  `tr '\0' '\n' < /proc/$(pgrep -x ahk_core)/environ | grep -E
+  '^(DISPLAY|WAYLAND_DISPLAY|AHK_LIBEI|AHK_INPUT_BACKEND|GDK_BACKEND)='`.
+
+### Portal / "allow remote connection" dialog forensics
+
+GNOME raises that dialog for `org.freedesktop.portal.RemoteDesktop` sessions.
+Two possible callers on this setup:
+
+- the **Xwayland XTEST bridge** (`Xwayland ... -enable-ei-portal`, seen in
+  `ps`): any XTEST key event injected while a native-Wayland window has focus
+  asks for consent;
+- the AHK port's **libei** path (liboeffis, `oeffis_*` handle tokens), which
+  the script disables with `AHK_LIBEI=0` and never needs (uinput does the
+  typing).
+
+Identify the caller by watching the session bus (works from inside the
+container — the session bus is shared) and resolving the sender to a PID:
+
+```bash
+dbus-monitor --session "interface=org.freedesktop.portal.RemoteDesktop" |
+while IFS= read -r line; do
+    case "$line" in
+        method\ call*)
+            s=$(printf '%s' "$line" | sed -n 's/.*sender=\(:[0-9.]*\).*/\1/p')
+            pid=$(gdbus call --session --dest org.freedesktop.DBus \
+                --object-path /org/freedesktop/DBus \
+                --method org.freedesktop.DBus.GetConnectionUnixProcessID "$s" \
+                2>/dev/null | tr -dc '0-9')
+            echo "$s -> pid=$pid"; ps -o pid,comm,args -p "$pid" 2>/dev/null
+            ;;
+    esac
+done
+```
+
+- `journalctl --user -b | grep -iE "portal|remote|screen cast"` shows the
+  portal side ("Failed to associate portal window with parent window",
+  "Failed to stop screen cast session: Session not started").
+- `busctl --user list` maps a running PID to its D-Bus unique name.
+- `AHK_LIBEI=0` in the script rules out the port as the caller; uinput
+  operations, `XWarpPointer`, window/startup were all verified not to open a
+  portal session.
+- The dialog is intermittent: it depends on which window has focus and
+  whether a consent session is still alive, so a single non-repro is not
+  conclusive — leave the monitor running while reproducing.
+
+### Function-level harness (fastest for GTK/state helpers)
+
+Extract the relevant functions from `bar_cheat.ahk` into a scratch script,
+build a real `Gui`/`TreeView`, exercise the helper, and assert on the result
+(this is how the tree expand/scroll state, widget lookup and uinput paths were
+validated). Gotchas:
+
+- The harness must define `global IsWslPort := true` and any globals the
+  functions read (`PortTreeWidgets`, `PendingTreeTopId`, `SearchBox`,
+  `TreeView`), or the port throws "local variable has not been assigned" or
+  shows a modal `VarUnset` dialog.
+- Use multi-line function definitions (`Log(msg) {` ... `}`); one-line
+  `Log(msg) { ... }` bodies do not parse.
+- Validate the harness with the top-sentinel check before trusting a hang as
+  a real behaviour.
 
 Pitfalls:
 
@@ -293,8 +364,10 @@ Key functions in `bar_cheat.ahk` (Linux-relevant):
 - Platform/plumbing: `DetectWslPort`, `PortClick`, `PortDll`,
   `PortFocusWatch`, `PortUiWatch`.
 - GTK widget access: `PortTreeWidget`, `PortFindWindow`, `PortFindUnitsTree`,
-  `PortFindTreeByColumns`, `PortTreePath`, `PortTreeIndex`,
-  `PortTreeExpandItem/All`, `PortTreeSelectItem`, `PortDisableTreeEdit`.
+  `PortFindTreeByColumns`, `PortTreePath`, `PortTreeIndex`, `TreeNextFull`,
+  `PortTreeExpandItem/All`, `PortTreeSelectItem`, `PortDisableTreeEdit`,
+  `PortTreeIsExpanded`, `PortTreeTopItemText`, `PortTreeScrollToItem`,
+  `ApplyPendingTreeScroll`.
 - Input: `PortUinputAvailable/Event/CharMap/TypeText/Enter/MoveBy`,
   `PortRestorePointer`.
 - Flow: `ShowGui`, `DoPaste`, `PasteSelectedCode`, `CloseGui`,

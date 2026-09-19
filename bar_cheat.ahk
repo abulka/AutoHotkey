@@ -27,11 +27,19 @@ if IsWslPort {
             EnvSet("GDK_BACKEND", "x11")
     }
 }
+
+; The cheat types through its own /dev/uinput keyboard and never needs the
+; port's libei/RemoteDesktop route, so forbid it outright: otherwise any stray
+; Send/XTEST path can raise GNOME's "allow remote connection" consent dialog.
+if IsWslPort {
+    try EnvSet("AHK_LIBEI", "0")
+}
 global LastPasteFire := 0
 global UinputFd := 0
 global UinputTried := false
 global UinputUsable := false
 global PortTreeWidgets := Map()
+global PendingTreeTopId := 0
 global PortUiLastTab := -1
 global PortUiLastRecent := -1
 global PortUiLastFav := -1
@@ -635,6 +643,26 @@ PortTreeIndex(tv, parentId, targetId) {
     return -1
 }
 
+; Next item in a pre-order ("Full") walk.  The port's
+; TV_GetNext(id, "Full") is broken - it returns the first child instead of the
+; next node, so the walk never leaves the first category - so step child,
+; sibling, then up to the parent's next sibling ourselves.
+TreeNextFull(tv, itemId) {
+    if IsWslPort {
+        child := tv.GetChild(itemId)
+        if child
+            return child
+        while itemId {
+            sib := tv.GetNext(itemId, "Next")
+            if sib
+                return sib
+            itemId := tv.GetParent(itemId)
+        }
+        return 0
+    }
+    return tv.GetNext(itemId, "Full")
+}
+
 ; Expands one item (Modify "Expand" is a no-op on the port).
 PortTreeExpandItem(tv, itemId) {
     widget := PortTreeWidget(tv)
@@ -679,6 +707,82 @@ PortTreeSelectItem(tv, itemId) {
         PortDll("libgtk-3.so.0", "gtk_tree_selection_select_path", "ptr", sel, "ptr", path)
         PortDll("libgtk-3.so.0", "gtk_tree_view_set_cursor", "ptr", widget, "ptr", path, "ptr", 0, "int", 0)
         PortDll("libgtk-3.so.0", "gtk_tree_view_scroll_to_cell", "ptr", widget, "ptr", path, "ptr", 0, "int", 0, "float", 0.5, "float", 0.0)
+        PortDll("libgtk-3.so.0", "gtk_tree_path_free", "ptr", path)
+    } catch {
+    }
+}
+
+; The port's TreeView.Get("Expand") always returns 0 (its TV_Get only knows
+; the "Expanded" spelling), so query GTK directly when saving tree state.
+PortTreeIsExpanded(tv, itemId) {
+    widget := PortTreeWidget(tv)
+    if !widget
+        return false
+    pathStr := PortTreePath(tv, itemId)
+    if pathStr = ""
+        return false
+    try {
+        path := PortDll("libgtk-3.so.0", "gtk_tree_path_new_from_string", "astr", pathStr, "ptr")
+        if !path
+            return false
+        res := PortDll("libgtk-3.so.0", "gtk_tree_view_row_expanded", "ptr", widget, "ptr", path, "int")
+        PortDll("libgtk-3.so.0", "gtk_tree_path_free", "ptr", path)
+        return res ? true : false
+    } catch {
+    }
+    return false
+}
+
+; Text of the first visible row (the port's TVM_GETFIRSTVISIBLE is inert),
+; so the scroll position can be saved as a "Top:<name>" entry like Windows.
+PortTreeTopItemText(tv) {
+    widget := PortTreeWidget(tv)
+    if !widget
+        return ""
+    try {
+        pathBuf := Buffer(8, 0)
+        ok := PortDll("libgtk-3.so.0", "gtk_tree_view_get_path_at_pos", "ptr", widget
+            , "int", 0, "int", 0, "ptr", pathBuf.Ptr, "ptr", 0, "ptr", 0, "ptr", 0, "int")
+        if !ok
+            return ""
+        path := NumGet(pathBuf, 0, "ptr")
+        if !path
+            return ""
+        cstr := PortDll("libgtk-3.so.0", "gtk_tree_path_to_string", "ptr", path, "ptr")
+        pathStr := cstr ? StrGet(cstr, "UTF-8") : ""
+        if cstr
+            PortDll("libglib-2.0.so.0", "g_free", "ptr", cstr)
+        PortDll("libgtk-3.so.0", "gtk_tree_path_free", "ptr", path)
+        if pathStr = ""
+            return ""
+        itemId := 0
+        Loop {
+            itemId := TreeNextFull(tv, itemId)
+            if !itemId
+                break
+            if PortTreePath(tv, itemId) = pathStr
+                return tv.GetText(itemId)
+        }
+    } catch {
+    }
+    return ""
+}
+
+; Scrolls an item to the top of the viewport: the port's TVM_ENSUREVISIBLE is
+; inert.  Must run after the window is shown/allocated (see DelayedSelect).
+PortTreeScrollToItem(tv, itemId) {
+    widget := PortTreeWidget(tv)
+    if !widget
+        return
+    pathStr := PortTreePath(tv, itemId)
+    if pathStr = ""
+        return
+    try {
+        path := PortDll("libgtk-3.so.0", "gtk_tree_path_new_from_string", "astr", pathStr, "ptr")
+        if !path
+            return
+        PortDll("libgtk-3.so.0", "gtk_tree_view_scroll_to_cell", "ptr", widget, "ptr", path
+            , "ptr", 0, "int", 1, "float", 0.0, "float", 0.0)
         PortDll("libgtk-3.so.0", "gtk_tree_path_free", "ptr", path)
     } catch {
     }
@@ -1310,6 +1414,10 @@ RebuildGui() {
 DelayedSelect() {
     global TreeView
 
+    ; Apply the deferred port tree scroll first: the GTK adjustment has no
+    ; extent until after the window is shown.
+    ApplyPendingTreeScroll()
+
     ; Only pick a default selection if the state restore didn't provide one
     ; (guarded on the port: scripted selection tracking is unreliable)
     try {
@@ -1374,6 +1482,7 @@ FactionChanged(*) {
     } else {
         PopulateTreeView(TreeView, unitsData)
         RestoreTreeViewState(TreeView, TreeViewStateFile)
+        ApplyPendingTreeScroll()
     }
     UpdateAmountArea()
     if IsObject(gStatus)
@@ -1435,6 +1544,7 @@ FilterTreeView(*) {
         ; No search text: show everything and restore saved expand state
         PopulateTreeView(TreeView, unitsData)
         RestoreTreeViewState(TreeView, TreeViewStateFile)
+        ApplyPendingTreeScroll()
     } else {
         ; Build a filtered map of categories to matching units
         filtered := Map()
@@ -1480,10 +1590,10 @@ SaveTreeViewState(tv, filePath, skipIfFiltered := false) {
     state := ""
     itemId := 0
     Loop {
-        itemId := tv.GetNext(itemId, "Full")
+        itemId := TreeNextFull(tv, itemId)
         if !itemId
             break
-        if tv.Get(itemId, "Expand")
+        if IsWslPort ? PortTreeIsExpanded(tv, itemId) : tv.Get(itemId, "Expand")
             state .= tv.GetText(itemId) "`n"
     }
 
@@ -1493,9 +1603,15 @@ SaveTreeViewState(tv, filePath, skipIfFiltered := false) {
         state .= "Selected:" tv.GetText(sel) "`n"
 
     ; Scroll position (first visible item)
-    topItem := SendMessage(0x110A, 0, 0, tv)  ; TVM_GETFIRSTVISIBLE
-    if topItem
-        state .= "Top:" tv.GetText(topItem) "`n"
+    if IsWslPort {
+        topName := PortTreeTopItemText(tv)
+        if topName != ""
+            state .= "Top:" topName "`n"
+    } else {
+        topItem := SendMessage(0x110A, 0, 0, tv)  ; TVM_GETFIRSTVISIBLE
+        if topItem
+            state .= "Top:" tv.GetText(topItem) "`n"
+    }
 
     file := FileOpen(filePath, "w")
     if file {
@@ -1507,6 +1623,7 @@ SaveTreeViewState(tv, filePath, skipIfFiltered := false) {
 }
 
 RestoreTreeViewState(tv, filePath) {
+    global PendingTreeTopId
     if !FileExist(filePath)
         return
 
@@ -1528,7 +1645,7 @@ RestoreTreeViewState(tv, filePath) {
     selId := 0
     topId := 0
     Loop {
-        itemId := tv.GetNext(itemId, "Full")
+        itemId := TreeNextFull(tv, itemId)
         if !itemId
             break
         itemText := tv.GetText(itemId)
@@ -1554,8 +1671,23 @@ RestoreTreeViewState(tv, filePath) {
         else
             tv.Modify(selId, "Select")
     }
-    if topId
+    if IsWslPort {
+        ; TVM_ENSUREVISIBLE is inert on the port; defer the scroll until the
+        ; window is shown and its adjustment allocated (ApplyPendingTreeScroll).
+        PendingTreeTopId := topId
+    } else if topId {
         try SendMessage(0x1114, 0, topId, tv)  ; TVM_ENSUREVISIBLE (guarded: SendMessage is flaky on the port)
+    }
+}
+
+; Applies a pending port tree scroll (set by RestoreTreeViewState).  Needed
+; after Show/repopulate because the GTK adjustment has no extent before then.
+ApplyPendingTreeScroll() {
+    global TreeView, PendingTreeTopId
+    if IsWslPort && PendingTreeTopId {
+        PortTreeScrollToItem(TreeView, PendingTreeTopId)
+        PendingTreeTopId := 0
+    }
 }
 
 SaveWindowPos() {
@@ -2014,7 +2146,7 @@ UpdateTreeStar(name, code, starred) {
     key := FavKey(name, code)
     itemId := 0
     Loop {
-        itemId := TreeView.GetNext(itemId, "Full")
+        itemId := TreeNextFull(TreeView, itemId)
         if !itemId
             break
         if !TreeView.GetParent(itemId)
