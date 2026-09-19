@@ -1150,8 +1150,13 @@ ShowGui() {
         ActiveFaction := "Armada"
     TreeViewStateFile := FactionStateFile(ActiveFaction)
 
-    ; Create new GUI
-    gGui := Gui(topmost ? "+AlwaysOnTop +Owner" : "+Owner", "BAR Cheat")
+    ; Create new GUI.  +Owner keeps the window out of the taskbar on Windows;
+    ; the Linux port doesn't implement it, so adding it there only prints an
+    ; "option ignored" warning.
+    guiOpts := topmost ? "+AlwaysOnTop" : ""
+    if !IsWslPort
+        guiOpts .= " +Owner"
+    gGui := Gui(guiOpts, "BAR Cheat")
     gGui.Title := "BAR Cheat Codes"
     gGui.SetFont("s10" (dark ? " cE0E0E0" : " c000000"))
     if dark
@@ -1361,7 +1366,12 @@ ShowGui() {
     ; Status line shows the selected cheat code and hints (a text control
     ; instead of a real status bar so dark mode can style it)
     statusHints := "Select a cheat - Enter=Paste, Esc=Close"
-    gStatus := gGui.Add("Text", "x8 y704 w408 h24 +Border +0x200 " txtOpt, statusHints)
+    ; +0x200 (SS_CENTERIMAGE) vertically centers the text on Windows only; the
+    ; Linux port ignores the raw style and warns, so omit it there.
+    statusOpts := "x8 y704 w408 h24 +Border " txtOpt
+    if !IsWslPort
+        statusOpts .= " +0x200"
+    gStatus := gGui.Add("Text", statusOpts, statusHints)
 
     ; Handle GUI close event
     gGui.OnEvent("Close", CloseGui)
