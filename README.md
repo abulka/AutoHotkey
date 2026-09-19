@@ -52,8 +52,7 @@ Notes:
 - **Settings tab** also has toggles for **Always on top**, **Remember window position**, and **Dark mode** — all persisted to `bar_cheat.ini`.
 - **Help panel**: the Settings tab shows an About box and a scrollable **Help** panel that renders this README (markdown flattened to plain text, loaded live from `README.md`), with an **Open README.md** link to view the fully formatted file.
 - **Game detection**: pasting only happens when the game window is detected; otherwise a tray notification is shown and nothing is typed. The window is matched by trying each criterion in `GameWinCriteria` in the script (currently the `spring.exe` engine process, then any window title containing "Beyond All Reason") — adjust if your setup differs.
-- Recent cheats are remembered in `bar_cheats_recent.txt` and shown in a "Recent" category at the top of the tree.
-- The treeview expand/collapse state is saved in `bar_treeview_state.txt`.
+- Recent cheats are remembered in `bar_cheats_recent.txt` and shown on the **Recent** tab.
 - Unit preview images are loaded from the `unit_images/` folder when a selected unit has a matching image.
 - `bar_cheats.txt` can be edited (even while the script is running); the list reloads automatically next time the GUI is opened.
 

@@ -74,8 +74,9 @@ gated by `IsWslPort`.
     startup census (categories/recents/favorites counts) and a timer that
     auto-opens the GUI. Used for headless/UI inspection.
 - **State files** — `bar_cheat.ini`, `bar_cheats_recent.txt`,
-  `bar_cheats_favorites.txt`, `bar_treeview_state.txt` are written next to the
-  script (gitignored).
+  `bar_cheats_favorites.txt`, and the per-faction
+  `bar_treeview_state_armada.txt` / `bar_treeview_state_cortex.txt` are written
+  next to the script (gitignored).
 - **Windows paths are untouched**: new code is either inside `if IsWslPort`
   branches or only ever called from one.
 
@@ -283,7 +284,7 @@ Pitfalls:
 | `run_bar_cheat_distrobox.sh` | host launcher (distrobox, x11 backend, uinput hint) |
 | `gen_wsl.py` | injects OnError logger + startup census + auto-open GUI |
 | `bar_cheats.txt`, `bar_cheats_recent.txt`, `bar_cheats_favorites.txt` | data (recents/favorites gitignored) |
-| `bar_cheat.ini`, `bar_treeview_state.txt` | settings/state (gitignored) |
+| `bar_cheat.ini`, `bar_treeview_state_armada.txt`, `bar_treeview_state_cortex.txt` | settings/state (gitignored) |
 | `unit_images/` | unit preview PNGs |
 | `docs/linux-port-internals.md` | this file |
 
