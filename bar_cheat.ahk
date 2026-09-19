@@ -342,6 +342,16 @@ UnitCodeFromCheat(cheatCode) {
     return ""
 }
 
+; Faction implied by a unit code (arm*/cor*), or "" when not a faction unit.
+FactionFromCode(cheatCode) {
+    code := UnitCodeFromCheat(cheatCode)
+    if SubStr(code, 1, 3) = "arm"
+        return "Armada"
+    if SubStr(code, 1, 3) = "cor"
+        return "Cortex"
+    return ""
+}
+
 ; Identity used for favorites/recents: the unit code when available (unique per
 ; faction), otherwise the display name (used for meta commands like /cheat).
 FavKey(name, cheatCode) {
@@ -351,17 +361,28 @@ FavKey(name, cheatCode) {
 
 ; Display tag that distinguishes same-named units across factions.
 FactionTag(cheatCode) {
-    code := UnitCodeFromCheat(cheatCode)
-    if SubStr(code, 1, 3) = "arm"
-        return "[A] "
-    if SubStr(code, 1, 3) = "cor"
-        return "[C] "
+    switch FactionFromCode(cheatCode) {
+        case "Armada": return "[A] "
+        case "Cortex": return "[C] "
+    }
     return ""
 }
 
 ; Per-faction tree expand/selection state file.
 FactionStateFile(faction) {
     return A_ScriptDir "/bar_treeview_state_" (faction = "Cortex" ? "cortex" : "armada") ".txt"
+}
+
+; Remembers the "Add to Team" slot per faction (0-15). The legacy single
+; "Team" setting seeds both factions for configs written before per-faction
+; memory existed.
+GetFactionTeam(faction) {
+    fallback := GetSetting("Team", "0")
+    return Integer(GetSetting("Team_" faction, fallback))
+}
+
+SetFactionTeam(faction, team) {
+    SetSetting("Team_" faction, team)
 }
 
 ; ---- Settings help (renders README.md as readable plain text) ----
@@ -1177,8 +1198,7 @@ ShowGui() {
     Loop 16
         teamChoices.Push("Team " (A_Index - 1))
     TeamBox := gGui.Add("DropDownList", "x120 y632 w72 " lstOpt, teamChoices)
-    initialTeam := Integer(GetSetting("Team", "0"))
-    TeamBox.Value := (initialTeam >= 0 && initialTeam <= 15) ? initialTeam + 1 : 1
+    SetTeamBoxForFaction(ActiveFaction)
     TeamBox.OnEvent("Change", TeamChanged)
     ImgToggleBtn := gGui.Add("Button", "x300 y632 w84 " btnOpt, "Hide Img")
     ImgToggleBtn.OnEvent("Click", PortClick(ToggleImagePreview))
@@ -1443,6 +1463,7 @@ DelayedSelect() {
 ; tabs (only Close works there).
 TabChanged(*) {
     UpdateAmountArea()
+    SyncTeamBox()
     if IsObject(gStatus)
         UpdateStatusBar(GetDisplayedCheatCode())
 }
@@ -1459,14 +1480,15 @@ UpdateAmountArea() {
         PasteBtn.Enabled := tab != 5
 }
 
-; Switches the Units tree to the selected faction and restores that faction's
-; own expand/selection state.
-FactionChanged(*) {
+; Switches the active faction: persists it, repoints the faction dropdown and
+; the per-faction tree dataset/state, and keeps the Team box in sync. Called by
+; the Units faction dropdown and by Recent/Favorite selections (so the dropdown
+; follows the picked unit's faction).
+SwitchFaction(newFaction) {
     global FactionBox, ActiveFaction, unitsDataByFaction, unitsData, TreeView, TreeViewStateFile, SearchBox, gStatus
 
-    if !IsObject(FactionBox)
+    if newFaction != "Armada" && newFaction != "Cortex"
         return
-    newFaction := (FactionBox.Value = 2) ? "Cortex" : "Armada"
     if newFaction = ActiveFaction
         return
 
@@ -1477,6 +1499,9 @@ FactionChanged(*) {
     TreeViewStateFile := FactionStateFile(ActiveFaction)
     unitsData := unitsDataByFaction.Has(ActiveFaction) ? unitsDataByFaction[ActiveFaction] : Map()
 
+    if IsObject(FactionBox)
+        FactionBox.Value := (ActiveFaction = "Cortex") ? 2 : 1
+
     if IsObject(SearchBox) && Trim(SearchBox.Value) != "" {
         FilterTreeView()
     } else {
@@ -1485,8 +1510,54 @@ FactionChanged(*) {
         ApplyPendingTreeScroll()
     }
     UpdateAmountArea()
+    SyncTeamBox()
     if IsObject(gStatus)
         UpdateStatusBar(GetDisplayedCheatCode())
+}
+
+; Units faction dropdown event -> switch to the selected faction.
+FactionChanged(*) {
+    global FactionBox
+    if !IsObject(FactionBox)
+        return
+    SwitchFaction((FactionBox.Value = 2) ? "Cortex" : "Armada")
+}
+
+; Faction that currently owns the Team box: the Units tab's faction, or the
+; faction of the selected Recent/Favorite unit. "" when undeterminable (Meta,
+; Settings, or a non-faction command).
+CurrentTeamFaction() {
+    global TabCtrl, ActiveFaction, RecentList, recentDisplay, FavList, favDisplay
+    if !IsObject(TabCtrl)
+        return ActiveFaction
+    if TabCtrl.Value = 1
+        return ActiveFaction
+    if TabCtrl.Value = 2 {
+        idx := IsObject(RecentList) ? RecentList.Value : 0
+        if idx && IsObject(recentDisplay) && idx <= recentDisplay.Length
+            return FactionFromCode(recentDisplay[idx].code)
+    } else if TabCtrl.Value = 3 {
+        idx := IsObject(FavList) ? FavList.Value : 0
+        if idx && IsObject(favDisplay) && idx <= favDisplay.Length
+            return FactionFromCode(favDisplay[idx].code)
+    }
+    return ""
+}
+
+; Points the shared Team box at the remembered team for a faction (0-15).
+SetTeamBoxForFaction(faction) {
+    global TeamBox
+    if !IsObject(TeamBox) || (faction != "Armada" && faction != "Cortex")
+        return
+    team := GetFactionTeam(faction)
+    TeamBox.Value := (team >= 0 && team <= 15) ? team + 1 : 1
+}
+
+; Repoints the Team box at the remembered team for the current selection.
+SyncTeamBox() {
+    faction := CurrentTeamFaction()
+    if faction = "Armada" || faction = "Cortex"
+        SetTeamBoxForFaction(faction)
 }
 
 ; Selected team slot from the "Add to Team" dropdown (DDL value is 1-based).
@@ -1497,7 +1568,12 @@ GetTeamNumber() {
 
 TeamChanged(*) {
     global TeamBox
-    if IsObject(TeamBox)
+    if !IsObject(TeamBox)
+        return
+    faction := CurrentTeamFaction()
+    if faction = "Armada" || faction = "Cortex"
+        SetFactionTeam(faction, GetTeamNumber())
+    else
         SetSetting("Team", GetTeamNumber())
     UpdateStatusBar(GetDisplayedCheatCode())
 }
@@ -1925,6 +2001,17 @@ ListSelectionChanged(ctrl, *) {
     }
     if cheatCode != ""
         AmountBox.Value := ExtractCheatAmount(cheatCode)
+    ; Picking a unit from Recent/Favorites also drives the Units faction
+    ; dropdown and the Team box, so they follow the picked unit's faction.
+    ; Only do this for the list belonging to the active tab (the other lists
+    ; are still auto-selected on rebuild and must not hijack the faction).
+    if IsObject(TabCtrl) && ((TabCtrl.Value = 2 && ctrl.Hwnd = RecentList.Hwnd)
+                          || (TabCtrl.Value = 3 && ctrl.Hwnd = FavList.Hwnd)) {
+        faction := FactionFromCode(cheatCode)
+        if faction != ""
+            SwitchFaction(faction)
+        SyncTeamBox()
+    }
     ; Keep the Favorite button label in sync with the selection
     if IsObject(FavBtn) && IsObject(TabCtrl) && TabCtrl.Value >= 2 && itemName != ""
         FavBtn.Text := IsFavorite(itemName, cheatCode) ? "★ Unfavorite" : "★ Favorite"
