@@ -634,6 +634,45 @@ PortFindTreeByColumns(root, columns) {
     return 0
 }
 
+; Puts GTK's cursor after the last character of the GtkEntry holding the given
+; text.  The port has no EM_SETSEL, and assigning .Value leaves the cursor at
+; the start.  Iterative on purpose (the port's DllCall breaks inside recursive
+; functions).  The three search boxes can hold the same transfer text, but only
+; the active tab's entry is mapped; setting the position on an inactive match
+; as well is harmless.
+PortSearchCaretToEnd(text) {
+    if text = ""
+        return
+    win := PortFindWindow("BAR Cheat Codes")
+    if !win
+        return
+    entryType := PortDll("libgtk-3.so.0", "gtk_entry_get_type", "ptr")
+    containerType := PortDll("libgtk-3.so.0", "gtk_container_get_type", "ptr")
+    queue := [win]
+    while queue.Length {
+        widget := queue.Pop()
+        if PortDll("libgobject-2.0.so.0", "g_type_check_instance_is_a", "ptr", widget, "ptr", entryType, "int") {
+            textPtr := PortDll("libgtk-3.so.0", "gtk_entry_get_text", "ptr", widget, "ptr")
+            if textPtr && StrGet(textPtr, "UTF-8") = text
+                PortDll("libgtk-3.so.0", "gtk_editable_set_position", "ptr", widget, "int", -1)
+            continue
+        }
+        if !PortDll("libgobject-2.0.so.0", "g_type_check_instance_is_a", "ptr", widget, "ptr", containerType, "int")
+            continue
+        children := PortDll("libgtk-3.so.0", "gtk_container_get_children", "ptr", widget, "ptr")
+        if !children
+            continue
+        node := children
+        while node {
+            child := NumGet(node, 0, "ptr")
+            node := NumGet(node, A_PtrSize, "ptr")
+            if child
+                queue.Push(child)
+        }
+        PortDll("libglib-2.0.so.0", "g_list_free", "ptr", children)
+    }
+}
+
 ; GTK tree path ("top:child") of a tree item, or "" when it cannot be built.
 PortTreePath(tv, itemId) {
     if !IsObject(tv)
@@ -1516,13 +1555,31 @@ SyncSearchBox() {
     if tab = 1 && IsObject(SearchBox) {
         SearchBox.Value := SearchQuery
         FilterTreeView()
+        MoveCaretToEnd(SearchBox)
     } else if tab = 2 && IsObject(RecentSearchBox) {
         RecentSearchBox.Value := SearchQuery
         FilterRecentList()
+        MoveCaretToEnd(RecentSearchBox)
     } else if tab = 3 && IsObject(FavSearchBox) {
         FavSearchBox.Value := SearchQuery
         FilterFavList()
+        MoveCaretToEnd(FavSearchBox)
     }
+}
+
+; After a programmatic Value change the insert point sits at position 0, so
+; the next keystroke would insert at the start of the transferred query.  Put
+; it after the last character instead: Windows uses EM_SETSEL, the port goes
+; through GTK (no equivalent message).
+MoveCaretToEnd(ctrl) {
+    if !IsObject(ctrl)
+        return
+    if IsWslPort {
+        PortSearchCaretToEnd(ctrl.Value)
+        return
+    }
+    len := StrLen(ctrl.Value)
+    SendMessage(0x00B1, len, len, ctrl.Hwnd)   ; EM_SETSEL: empty selection at end
 }
 
 UpdateAmountArea() {

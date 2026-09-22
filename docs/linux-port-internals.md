@@ -219,6 +219,7 @@ later port release fixes the underlying defect. Port source references are to
 | `WinActivate`/`WinExist` with `ahk_id` throw | opaque handles; title matching is case-sensitive substring | `FindGameWindow`/`GameWinCriteria` return title strings; calls wrapped in `try` |
 | Native-Wayland GUI invisible to `WinActive` | GTK backend selection when both `DISPLAY` and `WAYLAND_DISPLAY` are set | `EnvSet("GDK_BACKEND", "x11")` before GTK init |
 | `SendMessage`, dark title bar, redraw gestures | Windows-only or inert on the port | wrapped in `try` / tolerated no-ops; tree expand/scroll use the GTK helpers above instead of the inert `TVM_*` messages |
+| Caret jumps to the start after a programmatic `Edit.Value` change (e.g. the shared search query when switching tabs) | the port sets the GtkEntry text without moving the cursor and has no `EM_SETSEL` | `PortSearchCaretToEnd` traverses the window's widgets, finds the GtkEntry holding the query and calls `gtk_editable_set_position(entry, -1)` (cursor after the last character) |
 
 Porting-fold behaviors kept from session 1 (still required):
 
@@ -367,7 +368,7 @@ Key functions in `bar_cheat.ahk` (Linux-relevant):
   `PortFindTreeByColumns`, `PortTreePath`, `PortTreeIndex`, `TreeNextFull`,
   `PortTreeExpandItem/All`, `PortTreeSelectItem`, `PortDisableTreeEdit`,
   `PortTreeIsExpanded`, `PortTreeTopItemText`, `PortTreeScrollToItem`,
-  `ApplyPendingTreeScroll`.
+  `ApplyPendingTreeScroll`, `PortSearchCaretToEnd`.
 - Input: `PortUinputAvailable/Event/CharMap/TypeText/Enter/MoveBy`,
   `PortRestorePointer`.
 - Flow: `ShowGui`, `DoPaste`, `PasteSelectedCode`, `CloseGui`,
