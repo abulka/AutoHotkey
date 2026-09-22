@@ -58,6 +58,8 @@ global gGui := ""
 global mouseX := 0, mouseY := 0
 global AmountBox := ""
 global SearchBox := ""
+; Shared search query: typing in one tab carries over when switching tabs
+global SearchQuery := ""
 global TabCtrl := ""
 global FavList := ""
 global FavSearchBox := ""
@@ -1088,6 +1090,7 @@ PortRestorePointer(targetX, targetY) {
 
 ShowGui() {
     global gGui, AmountBox, SearchBox, TabCtrl, FavList, FavSearchBox, RecentList, RecentSearchBox, MetaList, AmountGroup, FavBtn, HKBox, gStatus
+    global SearchQuery
     global TreeView, ImageViewer, RecentImg, FavImg, ImgToggleBtn
     global IncBtn, DecBtn, Btn1, Btn2, Btn5, Btn10, PasteBtn, CloseBtn, RemoveFavBtn, RemoveRecentBtn
     global chkTopmost, chkRememberPos, chkDark
@@ -1131,6 +1134,9 @@ ShowGui() {
             return
         }
     }
+
+    ; The controls are rebuilt empty, so start with a clean shared search query
+    SearchQuery := ""
 
     ; Save the old GUI's state before rebuilding it
     if IsObject(gGui) {
@@ -1178,7 +1184,7 @@ ShowGui() {
     TabCtrl.UseTab(1)
     gGui.Add("Text", "x16 y" lay.labelY " w54", "Search:")
     SearchBox := gGui.Add("Edit", "x74 y" lay.editY " w176 h24 " lstOpt, "")
-    SearchBox.OnEvent("Change", FilterTreeView)
+    SearchBox.OnEvent("Change", UnitsSearchChanged)
     gGui.Add("Text", "x258 y" lay.labelY " w50", "Faction:")
     FactionBox := gGui.Add("DropDownList", "x310 y" lay.editY " w90 " lstOpt, ["Armada", "Cortex"])
     FactionBox.Value := (ActiveFaction = "Cortex") ? 2 : 1
@@ -1197,7 +1203,7 @@ ShowGui() {
     TabCtrl.UseTab(2)
     gGui.Add("Text", "x16 y" lay.labelY " w60", "Search:")
     RecentSearchBox := gGui.Add("Edit", "x78 y" lay.editY " w322 h24 " lstOpt, "")
-    RecentSearchBox.OnEvent("Change", FilterRecentList)
+    RecentSearchBox.OnEvent("Change", RecentSearchChanged)
     RecentList := gGui.Add("ListBox", "x16 y" lay.listY " w384 h" lay.listH " " lstOpt)
     RecentList.OnEvent("DoubleClick", PasteSelectedCode)
     RecentList.OnEvent("Change", ListSelectionChanged)
@@ -1208,7 +1214,7 @@ ShowGui() {
     TabCtrl.UseTab(3)
     gGui.Add("Text", "x16 y" lay.labelY " w60", "Search:")
     FavSearchBox := gGui.Add("Edit", "x78 y" lay.editY " w322 h24 " lstOpt, "")
-    FavSearchBox.OnEvent("Change", FilterFavList)
+    FavSearchBox.OnEvent("Change", FavSearchChanged)
     FavList := gGui.Add("ListBox", "x16 y" lay.listY " w384 h" lay.listH " " lstOpt)
     FavList.OnEvent("DoubleClick", PasteSelectedCode)
     FavList.OnEvent("Change", ListSelectionChanged)
@@ -1551,8 +1557,49 @@ DelayedSelect() {
 TabChanged(*) {
     UpdateAmountArea()
     SyncTeamBox()
+    SyncSearchBox()
     if IsObject(gStatus)
         UpdateStatusBar(GetDisplayedCheatCode())
+}
+
+; Search-box Change handlers: record the query in the shared global, then run
+; the tab's own filter.
+UnitsSearchChanged(*) {
+    global SearchQuery, SearchBox
+    SearchQuery := SearchBox.Value
+    FilterTreeView()
+}
+
+RecentSearchChanged(*) {
+    global SearchQuery, RecentSearchBox
+    SearchQuery := RecentSearchBox.Value
+    FilterRecentList()
+}
+
+FavSearchChanged(*) {
+    global SearchQuery, FavSearchBox
+    SearchQuery := FavSearchBox.Value
+    FilterFavList()
+}
+
+; Carries the shared search query into the newly active tab's search box and
+; always re-applies the filter there. Meta/Settings have no search box, so the
+; query is simply kept for the next switch.
+SyncSearchBox() {
+    global TabCtrl, SearchQuery, SearchBox, RecentSearchBox, FavSearchBox
+    if !IsObject(TabCtrl)
+        return
+    tab := TabCtrl.Value
+    if tab = 1 && IsObject(SearchBox) {
+        SearchBox.Value := SearchQuery
+        FilterTreeView()
+    } else if tab = 2 && IsObject(RecentSearchBox) {
+        RecentSearchBox.Value := SearchQuery
+        FilterRecentList()
+    } else if tab = 3 && IsObject(FavSearchBox) {
+        FavSearchBox.Value := SearchQuery
+        FilterFavList()
+    }
 }
 
 UpdateAmountArea() {
@@ -2187,25 +2234,24 @@ GetFavoriteDisplayList() {
 }
 
 RefreshFavList() {
-    global FavList, favDisplay
+    global FavList, favDisplay, FavSearchBox
     if !IsObject(FavList)
         return
+    if IsObject(FavSearchBox) && Trim(FavSearchBox.Value) != "" {
+        filtered := []
+        for fav in GetFavoriteDisplayList() {
+            if MatchSearch(fav.name, FavSearchBox.Value)
+                filtered.Push(fav)
+        }
+        UpdateFavList(filtered)
+        return
+    }
     favDisplay := GetFavoriteDisplayList()
     UpdateFavList(favDisplay)
 }
 
 FilterFavList(*) {
-    global FavSearchBox
-    if Trim(FavSearchBox.Value) = "" {
-        RefreshFavList()
-        return
-    }
-    filtered := []
-    for fav in GetFavoriteDisplayList() {
-        if MatchSearch(fav.name, FavSearchBox.Value)
-            filtered.Push(fav)
-    }
-    UpdateFavList(filtered)
+    RefreshFavList()
 }
 
 UpdateFavList(list) {
@@ -2296,6 +2342,31 @@ RemoveFavoriteEntry(name, code) {
         }
     }
     return false
+}
+
+; Issuing a favorite moves it to the top of the list.  When the Amount box was
+; changed before pasting, the favorite's stored /give amount is rewritten too
+; (the stored team is left untouched - only the amount is tracked).
+PromoteFavorite(name, storedCode, appliedCode) {
+    global favData
+    if !IsObject(favData) || !favData.Length
+        return
+    key := FavKey(name, storedCode)
+    for i, fav in favData {
+        if FavKey(fav.name, fav.code) != key
+            continue
+        newCode := fav.code
+        newAmount := ExtractCheatAmount(appliedCode)
+        if newAmount != "" && newAmount != ExtractCheatAmount(fav.code)
+            newCode := ReplaceCheatAmount(fav.code, newAmount)
+        if i = 1 && newCode = fav.code
+            return   ; already at the top with no amount change
+        favData.RemoveAt(i)
+        favData.InsertAt(1, {name: fav.name, code: newCode})
+        SaveFavorites(favData)
+        RebuildFavoriteNames()
+        return
+    }
 }
 
 ; Runs fn with the listbox's redrawing suspended, then restores the scroll
@@ -2482,7 +2553,7 @@ DoPaste(cheatName, cheatCode) {
         FileAppend dbg, A_ScriptDir "/paste_dbg.log"
         TrayTip("Beyond All Reason window not found - cheat not pasted.", "BAR Cheat")
         CloseGui()
-        return
+        return false
     }
 
     ; Add to recent cheats
@@ -2546,6 +2617,7 @@ DoPaste(cheatName, cheatCode) {
         SendInput(EnterKey)
     }
     CloseGui()
+    return true
 }
 
 PasteSelectedCode(*) {
@@ -2603,7 +2675,11 @@ PasteFavorite(*) {
     if !idx || idx > favDisplay.Length
         return
     fav := favDisplay[idx]
-    DoPaste(fav.name, ApplyAmount(fav.code))
+    applied := ApplyAmount(fav.code)
+    ; A successful paste promotes the favorite to the top; an altered Amount
+    ; also rewrites the stored favorite amount (see PromoteFavorite).
+    if DoPaste(fav.name, applied)
+        PromoteFavorite(fav.name, fav.code, applied)
 }
 
 CloseGui(*) {
