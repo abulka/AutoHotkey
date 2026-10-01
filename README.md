@@ -68,6 +68,10 @@ uv run python bar_web_scraper.py --faction all --merge bar_cheats.txt  # refresh
 
 `--check` downloads and writes nothing. `--merge` replaces only the managed `Armada *`/`Cortex *` blocks in `bar_cheats.txt` (leaving the `Cheat` category untouched) and fetches any missing `unit_images/<code>.png`.
 
+The scraped unit names, descriptions and preview images are © their respective
+owners and are included here for identification/attribution purposes only — see
+[Acknowledgements & attribution](#acknowledgements--attribution).
+
 #### Example Codes
 
 ```
@@ -265,4 +269,20 @@ This script is used to test the functionality of Auto Hot Key. It opens a new no
 ### guilist.ahk
 
 This script is used to automate the process of selecting a value from a list of values in a GUI window. It opens a GUI window with a list of values, and allows the user to select a value from the list.
+
+## Acknowledgements & attribution
+
+- This project is licensed under the [MIT License](LICENSE).
+- **Beyond All Reason** — the unit data (`bar_units*.txt`, the managed blocks in
+  `bar_cheats.txt`), unit codes and preview images in `unit_images/` are scraped
+  from [beyondallreason.info](https://www.beyondallreason.info) via
+  `bar_web_scraper.py`. *Beyond All Reason* and its game content are the
+  property of their respective copyright holders (see the
+  [Beyond All Reason project](https://github.com/beyond-all-reason/Beyond-All-Reason));
+  these assets are redistributed here only to identify units within the game and
+  remain subject to their own license terms, which take precedence over the MIT
+  license above for those files.
+- **AutoHotkey** — the [AutoHotkey v2](https://www.autohotkey.com/) runtime and
+  the [Linux port](https://github.com/MonoEven/Autohotkey_Linux) are separate
+  projects under their own licenses and are not bundled here.
 
