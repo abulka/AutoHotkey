@@ -8,6 +8,8 @@ For Windows, I use Auto Hot Key to automate some tasks. Here are some of the scr
 
 This script is used to automate the process of cheating in the "Beyond All Reason" game. It opens a GUI window with a treeview list of possible objects to create.
 
+![Screenshot of the cheat GUI](docs/BAR-Autohotkey-cheat-Screenshot-01.png)
+
 #### Requirements
 
 - [AutoHotkey v2.0](https://www.autohotkey.com/) installed
